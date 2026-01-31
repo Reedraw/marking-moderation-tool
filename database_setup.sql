@@ -1,0 +1,2 @@
+-- Database setup script for Marking Moderation Tool
+-- Run this script once to create all required tables
