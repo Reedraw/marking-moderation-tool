@@ -17,8 +17,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border p-6 shadow-sm bg-white">
-        <h1 className="text-2xl font-semibold">Marking Moderation Tool</h1>
-        <p className="mt-1 text-sm text-gray-600">Sign in to continue.</p>
+        <h1 className="text-2xl font-semibold text-center">Marking Moderation Tool</h1>
+        <p className="mt-1 text-sm text-gray-600 text-center">Sign in to continue.</p>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
