@@ -36,12 +36,13 @@ async def create_user(
 
     user = await db.fetchrow(
         """
-        INSERT INTO users (username, email, password_hash, role, is_active)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, username, email, role, is_active, created_at, updated_at
+        INSERT INTO users (username, email, full_name, password_hash, role, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, username, email, full_name, role, is_active, created_at, updated_at
         """,
         username,
         email,
+        full_name,
         password_hash,
         role,
         is_active,
@@ -56,7 +57,7 @@ async def create_user(
 async def get_user_by_id(db: asyncpg.Pool, user_id: UUID) -> Optional[dict[str, Any]]:
     user = await db.fetchrow(
         """
-        SELECT id, username, email, role, is_active, created_at, updated_at
+        SELECT id, username, email, full_name, role, is_active, created_at, updated_at
         FROM users
         WHERE id = $1
         """,
@@ -68,7 +69,7 @@ async def get_user_by_id(db: asyncpg.Pool, user_id: UUID) -> Optional[dict[str, 
 async def get_active_user_by_id(db: asyncpg.Pool, user_id: UUID) -> Optional[dict[str, Any]]:
     user = await db.fetchrow(
         """
-        SELECT id, username, email, role, is_active, created_at, updated_at
+        SELECT id, username, email, full_name, role, is_active, created_at, updated_at
         FROM users
         WHERE id = $1 AND is_active = TRUE
         """,
@@ -80,7 +81,7 @@ async def get_active_user_by_id(db: asyncpg.Pool, user_id: UUID) -> Optional[dic
 async def get_user_by_email(db: asyncpg.Pool, email: str) -> Optional[dict[str, Any]]:
     user = await db.fetchrow(
         """
-        SELECT id, username, email, role, is_active, created_at, updated_at
+        SELECT id, username, email, full_name, role, is_active, created_at, updated_at
         FROM users
         WHERE email = $1
         """,
@@ -92,7 +93,7 @@ async def get_user_by_email(db: asyncpg.Pool, email: str) -> Optional[dict[str, 
 async def get_user_by_username(db: asyncpg.Pool, username: str) -> Optional[dict[str, Any]]:
     user = await db.fetchrow(
         """
-        SELECT id, username, email, role, is_active, created_at, updated_at
+        SELECT id, username, email, full_name, role, is_active, created_at, updated_at
         FROM users
         WHERE username = $1
         """,
@@ -115,10 +116,11 @@ async def username_exists(db: asyncpg.Pool, username: str) -> bool:
 
 async def get_user_password_hash_by_email(db: asyncpg.Pool, email: str) -> Optional[str]:
     """
-    Used during login.
+    Used during login. Returns password hash for any user (active or inactive).
+    The caller should check is_active separately to provide specific error messages.
     """
     return await db.fetchval(
-        "SELECT password_hash FROM users WHERE email = $1 AND is_active = TRUE",
+        "SELECT password_hash FROM users WHERE email = $1",
         email,
     )
 
@@ -185,7 +187,7 @@ async def update_user(
         UPDATE users
         SET {", ".join(set_clauses)}, updated_at = NOW()
         WHERE id = ${idx}
-        RETURNING id, username, email, role, is_active, created_at, updated_at
+        RETURNING id, username, email, full_name, role, is_active, created_at, updated_at
         """,
         *values,
     )
@@ -234,12 +236,14 @@ async def list_users(
 
     rows = await db.fetch(
         f"""
-        SELECT id, username, email, role, is_active, created_at, updated_at
+        SELECT id, username, email, full_name, role, is_active, created_at, updated_at
         FROM users
         {where_sql}
         ORDER BY created_at DESC
-        LIMIT {limit} OFFSET {offset}
+        LIMIT ${idx} OFFSET ${idx + 1}
         """,
         *values,
+        limit,
+        offset,
     )
     return [dict(r) for r in rows]

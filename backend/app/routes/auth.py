@@ -1,13 +1,11 @@
-from datetime import timedelta, datetime, timezone
-from typing import Annotated
+from datetime import timedelta
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 from app.lib.config import settings
 from app.lib.database import get_database
-from app.lib.password import verify_password, get_password_hash
+from app.lib.password import verify_password
 from app.lib.security import create_access_token
 from app.models import (
     UserCreate,
@@ -17,11 +15,8 @@ from app.models import (
 )
 from app.queries.users import (
     create_user,
-    get_user_by_id,
     get_user_by_email,
     username_exists,
-    get_user_password_hash,
-    update_user_password,
     get_user_password_hash_by_email
 )
 
