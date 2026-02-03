@@ -10,6 +10,7 @@ type Role = "lecturer" | "moderator" | "third_marker" | "admin";
 export default function RegisterPage() {
   const router = useRouter();
 
+  const [fullName, setFullName] = useState(""); // NEW
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("lecturer");
@@ -25,6 +26,7 @@ export default function RegisterPage() {
     setError(null);
     setSuccessMsg(null);
 
+    const fn = fullName.trim(); // NEW
     const u = username.trim();
     const em = email.trim();
 
@@ -38,11 +40,12 @@ export default function RegisterPage() {
     try {
       // TODO (backend FastAPI):
       // POST /api/auth/register
-      // Body: { username, email, password, role }
+      // Body: { full_name?, username, email, password, role }
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          full_name: fn || null, // NEW (optional)
           username: u,
           email: em,
           password,
@@ -67,7 +70,6 @@ export default function RegisterPage() {
       }
 
       setSuccessMsg("Account created. Redirecting to login...");
-      // Optional: short delay so user sees success
       setTimeout(() => router.push("/login"), 800);
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong.");
@@ -100,6 +102,21 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-4">
+            {/* Full name (optional) */}
+            <div>
+              <label className="text-sm font-medium">Full name</label>
+              <input
+                className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. Dr A. Patel"
+                autoComplete="name"
+              />
+              <div className="mt-1 text-xs text-gray-500">
+                Optional — used for display in dashboards.
+              </div>
+            </div>
+
             <div>
               <label className="text-sm font-medium">Username</label>
               <input
