@@ -120,21 +120,21 @@ export function AdminDashboard() {
 
       {/* Top stats */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Total assessments</div>
             <div className="mt-2 text-2xl font-semibold">{mockStats.totalAssessments}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Pending moderation</div>
             <div className="mt-2 text-2xl font-semibold">{mockStats.pendingModeration}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Escalations</div>
             <div className="mt-2 text-2xl font-semibold">{mockStats.escalated}</div>
@@ -142,7 +142,7 @@ export function AdminDashboard() {
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Approved</div>
             <div className="mt-2 text-2xl font-semibold">{mockStats.approved}</div>
@@ -151,7 +151,7 @@ export function AdminDashboard() {
       </section>
 
       {/* Status breakdown */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <h2 className="text-lg font-semibold">Workflow status breakdown</h2>
           <p className="mt-1 text-sm text-gray-600">
@@ -189,7 +189,7 @@ export function AdminDashboard() {
 
       {/* Users / Activity */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="">
+        <Card>
           <div className="p-5">
             <h2 className="text-lg font-semibold">Users</h2>
             <p className="mt-1 text-sm text-gray-600">Active accounts by role.</p>
@@ -228,7 +228,7 @@ export function AdminDashboard() {
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-5">
             <h2 className="text-lg font-semibold">Activity (last 24 hours)</h2>
             <p className="mt-1 text-sm text-gray-600">Operational signals for admin oversight.</p>
@@ -256,7 +256,7 @@ export function AdminDashboard() {
       </section>
 
       {/* Audit feed */}
-      <Card className="">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-semibold">Recent audit events</h2>
           <Link

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 
 type AssessmentStatus =
   | "Draft"
@@ -102,14 +102,14 @@ export function LecturerDashboard() {
 
       {/* Overview cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Assessments</div>
             <div className="mt-2 text-2xl font-semibold">{total}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Need action</div>
             <div className="mt-2 text-2xl font-semibold">{needAction}</div>
@@ -117,14 +117,14 @@ export function LecturerDashboard() {
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Pending moderation</div>
             <div className="mt-2 text-2xl font-semibold">{pending}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Approved</div>
             <div className="mt-2 text-2xl font-semibold">{approved}</div>
@@ -133,7 +133,7 @@ export function LecturerDashboard() {
       </section>
 
       {/* Table */}
-      <Card className="">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-semibold">Your assessments</h2>
           <div className="text-sm text-gray-600">{mockAssessments.length} total</div>

@@ -57,7 +57,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </header>
 
       {/* Summary */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <h2 className="text-lg font-semibold">{mockDetail.assessmentTitle}</h2>
           <div className="mt-1 text-sm text-gray-600">Cohort {mockDetail.cohort}</div>
@@ -72,7 +72,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
 
       {/* Comments */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="">
+        <Card>
           <div className="p-5">
             <h3 className="text-md font-semibold">Lecturer notes</h3>
             <p className="mt-2 text-sm text-gray-700">
@@ -81,7 +81,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-5">
             <h3 className="text-md font-semibold">Moderator notes</h3>
             <p className="mt-2 text-sm text-gray-700">
@@ -92,7 +92,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </section>
 
       {/* Sample */}
-      <Card className="">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-semibold">Moderation sample</h2>
           <div className="text-sm text-gray-600">{mockDetail.sample.size} students</div>
@@ -122,7 +122,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </Card>
 
       {/* Decision */}
-      <Card className="">
+      <Card>
         <div className="p-5 space-y-3">
           <h2 className="text-lg font-semibold">Final decision</h2>
           <p className="text-sm text-gray-600">
@@ -130,20 +130,30 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
           </p>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <button className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:opacity-90">
+            <button
+              className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:opacity-90"
+              aria-label="Confirm moderator decision for this assessment"
+            >
               Confirm moderator decision
             </button>
-            <button className="rounded-xl bg-yellow-500 px-4 py-2 text-sm text-white hover:opacity-90">
+            <button
+              className="rounded-xl bg-yellow-500 px-4 py-2 text-sm text-white hover:opacity-90"
+              aria-label="Override moderator decision for this assessment"
+            >
               Override decision
             </button>
-            <button className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50">
+            <button
+              className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50"
+              aria-label="Refer this assessment back for further review"
+            >
               Refer back
             </button>
           </div>
 
           <div>
-            <label className="text-xs text-gray-600">Third marker comment</label>
+            <label htmlFor="third-marker-comment" className="text-xs text-gray-600">Third marker comment</label>
             <textarea
+              id="third-marker-comment"
               className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm"
               rows={4}
               placeholder="Independent rationale and final justification..."
