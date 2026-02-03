@@ -1,6 +1,24 @@
 .env
 .venv/
-node_modules/
+more_context/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+*.db
+*.sqlite
+
+# Diretories
+.frontend/
 
 # dependencies
 /node_modules
