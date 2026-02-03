@@ -34,6 +34,11 @@ export default function RegisterPage() {
     if (!em) return setError("Please enter an email.");
     if (!password) return setError("Please enter a password.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}/.test(password)) {
+      return setError(
+        "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character."
+      );
+    }
     if (password !== confirmPassword) return setError("Passwords do not match.");
 
     setSubmitting(true);
@@ -104,8 +109,9 @@ export default function RegisterPage() {
           <form onSubmit={onSubmit} className="space-y-4">
             {/* Full name (optional) */}
             <div>
-              <label className="text-sm font-medium">Full name</label>
+              <label htmlFor="fullName" className="text-sm font-medium">Full name</label>
               <input
+                id="fullName"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -118,8 +124,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Username</label>
+              <label htmlFor="username" className="text-sm font-medium">Username</label>
               <input
+                id="username"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -132,8 +139,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Email</label>
+              <label htmlFor="email" className="text-sm font-medium">Email</label>
               <input
+                id="email"
                 type="email"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 value={email}
@@ -144,8 +152,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Role</label>
+              <label htmlFor="role" className="text-sm font-medium">Role</label>
               <select
+                id="role"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm"
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
@@ -161,8 +170,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Password</label>
+              <label htmlFor="password" className="text-sm font-medium">Password</label>
               <input
+                id="password"
                 type="password"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 value={password}
@@ -173,8 +183,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Confirm password</label>
+              <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm password</label>
               <input
+                id="confirmPassword"
                 type="password"
                 className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/10"
                 value={confirmPassword}

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Badge } from "@/components/ui";
+import { Card } from "@/components/ui";
+import type { AssessmentStatus } from "@/types/assessment";
 
-type ModerationStatus = "Pending Moderation" | "In Moderation" | "Approved" | "Changes Requested" | "Escalated";
+type ModerationStatus = AssessmentStatus | "Pending Moderation" | "Escalated";
 
 type ModerationQueueRow = {
   assessmentId: string;
@@ -45,10 +46,14 @@ const mockQueue: ModerationQueueRow[] = [
 function StatusPill({ status }: { status: ModerationStatus }) {
   const base = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border";
   const map: Record<ModerationStatus, string> = {
+    DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
+    MARKS_UPLOADED: "bg-blue-50 text-blue-700 border-blue-200",
+    SAMPLE_GENERATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    SUBMITTED_FOR_MODERATION: "bg-yellow-50 text-yellow-800 border-yellow-200",
+    IN_MODERATION: "bg-purple-50 text-purple-700 border-purple-200",
+    APPROVED: "bg-green-50 text-green-700 border-green-200",
+    CHANGES_REQUESTED: "bg-red-50 text-red-700 border-red-200",
     "Pending Moderation": "bg-yellow-50 text-yellow-800 border-yellow-200",
-    "In Moderation": "bg-purple-50 text-purple-700 border-purple-200",
-    Approved: "bg-green-50 text-green-700 border-green-200",
-    "Changes Requested": "bg-red-50 text-red-700 border-red-200",
     Escalated: "bg-indigo-50 text-indigo-700 border-indigo-200",
   };
   return <span className={`${base} ${map[status]}`}>{status}</span>;
@@ -83,28 +88,28 @@ export function ModeratorDashboard() {
 
       {/* KPI */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">In queue</div>
             <div className="mt-2 text-2xl font-semibold">{total}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Pending</div>
             <div className="mt-2 text-2xl font-semibold">{pending}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">In moderation</div>
             <div className="mt-2 text-2xl font-semibold">{inProgress}</div>
           </div>
         </Card>
 
-        <Card className="">
+        <Card>
           <div className="p-4">
             <div className="text-sm text-gray-600">Escalated</div>
             <div className="mt-2 text-2xl font-semibold">{escalated}</div>
@@ -113,7 +118,7 @@ export function ModeratorDashboard() {
       </section>
 
       {/* Table */}
-      <Card className="">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-semibold">Submitted assessments</h2>
           <div className="text-sm text-gray-600">{mockQueue.length} total</div>

@@ -61,7 +61,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </header>
 
       {/* Summary */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -85,7 +85,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </Card>
 
       {/* Lecturer comment */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <h2 className="text-lg font-semibold">Lecturer notes</h2>
           <p className="mt-2 text-sm text-gray-700">
@@ -95,7 +95,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </Card>
 
       {/* Sample table */}
-      <Card className="">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-semibold">Sample set</h2>
           <div className="text-sm text-gray-600">{mockDetail.sample.students.length} shown</div>
@@ -139,7 +139,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
       </Card>
 
       {/* Decision panel */}
-      <Card className="">
+      <Card>
         <div className="p-5 space-y-3">
           <h2 className="text-lg font-semibold">Moderator decision</h2>
           <p className="text-sm text-gray-600">
@@ -147,20 +147,30 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
           </p>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <button className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:opacity-90">
+            <button
+              className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:opacity-90"
+              aria-label={`Approve moderation outcome for ${mockDetail.assessmentTitle} assessment (${assessmentId})`}
+            >
               Approve (TODO)
             </button>
-            <button className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90">
+            <button
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90"
+              aria-label={`Request changes to marking for ${mockDetail.assessmentTitle} assessment (${assessmentId})`}
+            >
               Request changes (TODO)
             </button>
-            <button className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50">
+            <button
+              className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50"
+              aria-label={`Escalate ${mockDetail.assessmentTitle} assessment (${assessmentId}) to a third marker for independent review`}
+            >
               Escalate to third marker (TODO)
             </button>
           </div>
 
           <div>
-            <label className="text-xs text-gray-600">Moderator comment</label>
+            <label htmlFor="moderator-comment" className="text-xs text-gray-600">Moderator comment</label>
             <textarea
+              id="moderator-comment"
               className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm"
               rows={4}
               placeholder="Explain reasons, evidence, required actions, or escalation context..."

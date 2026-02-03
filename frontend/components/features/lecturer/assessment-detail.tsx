@@ -1,7 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { Card, Badge } from "@/components/ui";
+import { Card } from "@/components/ui";
+import type { SampleMethod } from "@/types/assessment";
 
 type Status =
   | "Draft"
@@ -41,7 +40,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
     dueDate: "2026-03-01",
     status: "Marks Uploaded" as Status,
     marksUploadedCount: 120,
-    sample: null as null | { size: number; method: "Random" | "Stratified" | "Risk-based"; percent: number },
+    sample: null as null | { size: number; method: SampleMethod; percent: number },
   };
 
   return (
@@ -72,7 +71,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
       </header>
 
       {/* Summary */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -111,7 +110,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
       </Card>
 
       {/* Generate sample */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <h2 className="text-lg font-semibold">Generate moderation sample</h2>
           <p className="mt-1 text-sm text-gray-600">
@@ -120,17 +119,18 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
-              <label className="text-xs text-gray-600">Method</label>
-              <select className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm">
-                <option>Random</option>
-                <option>Stratified</option>
-                <option>Risk-based</option>
+              <label htmlFor="sample-method" className="text-xs text-gray-600">Method</label>
+              <select id="sample-method" className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm">
+                <option value="RANDOM">Random</option>
+                <option value="STRATIFIED">Stratified</option>
+                <option value="RISK_BASED">Risk-based</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs text-gray-600">Percent</label>
+              <label htmlFor="sample-percent" className="text-xs text-gray-600">Percent</label>
               <input
+                id="sample-percent"
                 type="number"
                 min={1}
                 max={30}
@@ -153,7 +153,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
       </Card>
 
       {/* Submit for moderation */}
-      <Card className="">
+      <Card>
         <div className="p-5">
           <h2 className="text-lg font-semibold">Submit for moderation</h2>
           <p className="mt-1 text-sm text-gray-600">
@@ -161,8 +161,9 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
           </p>
 
           <div className="mt-4">
-            <label className="text-xs text-gray-600">Optional comment to moderator</label>
+            <label htmlFor="moderator-comment" className="text-xs text-gray-600">Optional comment to moderator</label>
             <textarea
+              id="moderator-comment"
               className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm"
               rows={3}
               placeholder="E.g., marking rubric notes, special cases, late submissions..."
