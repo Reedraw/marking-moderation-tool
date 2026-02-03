@@ -3,9 +3,9 @@ import { AssessmentDetail } from "@/components/features/lecturer";
 export default async function LecturerAssessmentDetailPage({
   params,
 }: {
-  params: { assessmentId: string };
+  params: Promise<{ assessmentId: string }>;
 }) {
-  const { assessmentId } = params;
+  const { assessmentId } = await params;
   
   return <AssessmentDetail assessmentId={assessmentId} />;
 }

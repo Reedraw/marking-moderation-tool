@@ -1,11 +1,11 @@
 import { AssessmentReview } from "@/components/features/third-marker";
 
-export default function ThirdMarkerAssessmentPage({
+export default async function ThirdMarkerAssessmentPage({
   params,
 }: {
-  params: { assessmentId: string };
+  params: Promise<{ assessmentId: string }>;
 }) {
-  const { assessmentId } = params;
+  const { assessmentId } = await params;
 
   return <AssessmentReview assessmentId={assessmentId} />;
 }

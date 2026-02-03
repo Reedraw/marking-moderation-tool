@@ -1,11 +1,11 @@
 import { AssessmentReview } from "@/components/features/moderator";
 
-export default function ModeratorAssessmentReviewPage({
+export default async function ModeratorAssessmentReviewPage({
   params,
 }: {
-  params: { assessmentId: string };
+  params: Promise<{ assessmentId: string }>;
 }) {
-  const { assessmentId } = params;
+  const { assessmentId } = await params;
 
   return <AssessmentReview assessmentId={assessmentId} />;
 }

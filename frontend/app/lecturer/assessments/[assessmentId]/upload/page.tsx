@@ -1,11 +1,11 @@
 import { UploadMarks } from "@/components/features/lecturer";
 
-export default function LecturerUploadMarksPage({
+export default async function LecturerUploadMarksPage({
   params,
 }: {
-  params: { assessmentId: string };
+  params: Promise<{ assessmentId: string }>;
 }) {
-  const { assessmentId } = params;
+  const { assessmentId } = await params;
 
   return <UploadMarks assessmentId={assessmentId} />;
 }
