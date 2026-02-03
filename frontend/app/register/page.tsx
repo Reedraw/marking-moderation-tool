@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 
 type Role = "lecturer" | "moderator" | "third_marker" | "admin";
 
+// Password complexity requirements: min 8 chars, at least one uppercase, one lowercase, one digit, and one special character
+const PASSWORD_COMPLEXITY_REGEX = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}/;
+
 export default function RegisterPage() {
   const router = useRouter();
 
@@ -34,7 +37,7 @@ export default function RegisterPage() {
     if (!em) return setError("Please enter an email.");
     if (!password) return setError("Please enter a password.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}/.test(password)) {
+    if (!PASSWORD_COMPLEXITY_REGEX.test(password)) {
       return setError(
         "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character."
       );

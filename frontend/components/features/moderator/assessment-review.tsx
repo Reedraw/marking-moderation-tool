@@ -149,19 +149,19 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <button
               className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:opacity-90"
-              aria-label={`Approve moderation outcome for ${mockDetail.assessmentTitle} assessment (${assessmentId})`}
+              aria-label="Approve moderation outcome"
             >
               Approve (TODO)
             </button>
             <button
               className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90"
-              aria-label={`Request changes to marking for ${mockDetail.assessmentTitle} assessment (${assessmentId})`}
+              aria-label="Request changes to marking"
             >
               Request changes (TODO)
             </button>
             <button
               className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50"
-              aria-label={`Escalate ${mockDetail.assessmentTitle} assessment (${assessmentId}) to a third marker for independent review`}
+              aria-label="Escalate to third marker for independent review"
             >
               Escalate to third marker (TODO)
             </button>
