@@ -38,7 +38,7 @@ const mockQueue: ModerationQueueRow[] = [
     cohort: "2025/26",
     submittedAt: "2026-02-02",
     lecturerName: "Prof Green",
-    status: "In Moderation",
+    status: "IN_MODERATION",
     sampleSize: 22,
   },
 ];
@@ -63,7 +63,7 @@ export function ModeratorDashboard() {
   // TODO: Fetch from API - GET /api/moderator/queue
   const total = mockQueue.length;
   const pending = mockQueue.filter((a) => a.status === "Pending Moderation").length;
-  const inProgress = mockQueue.filter((a) => a.status === "In Moderation").length;
+  const inProgress = mockQueue.filter((a) => a.status === "IN_MODERATION").length;
   const escalated = mockQueue.filter((a) => a.status === "Escalated").length;
 
   return (
