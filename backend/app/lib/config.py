@@ -38,15 +38,17 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
+    APPI_V1_STR: str = ""
+
     # -------------------------
     # Database
     # -------------------------
-    DATABASE_URL: str = Field(..., description="PostgreSQL connection URL")
+    DATABASE_URL: str 
 
     # -------------------------
     # Security
     # -------------------------
-    SECRET_KEY: str = Field(..., description="Secret key used for signing tokens/cookies")
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

@@ -11,6 +11,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.lib.config import settings, Environment
 from app.lib.database import connect_to_db, close_db_connection, get_database
+from app.lib.middleware import add_middleware
+from app.routes import auth
 
 SERVICE_VERSION = "0.1.0"
 
@@ -35,17 +37,10 @@ app = FastAPI(
     description="Marking Moderation Tool API",
 )
 
-# -------------------------
-# Middleware (CORS)
-# -------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
-)
+add_middleware(app)
 
+# Add Routes here
+app.include_router(auth.router, prefix=settings.APPI_V1_STR)
 
 # -------------------------
 # Exception handlers
