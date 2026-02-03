@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
-    APPI_V1_STR: str = ""
+    API_V1_STR: str = ""
 
     # -------------------------
     # Database

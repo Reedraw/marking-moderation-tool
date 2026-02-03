@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE,
+  full_name TEXT,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL,                 -- validate in FastAPI (e.g. lecturer/moderator/admin/third_marker)
   is_active BOOLEAN NOT NULL DEFAULT TRUE,

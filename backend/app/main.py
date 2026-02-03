@@ -7,7 +7,6 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.cors import CORSMiddleware
 
 from app.lib.config import settings, Environment
 from app.lib.database import connect_to_db, close_db_connection, get_database
@@ -40,7 +39,7 @@ app = FastAPI(
 add_middleware(app)
 
 # Add Routes here
-app.include_router(auth.router, prefix=settings.APPI_V1_STR)
+app.include_router(auth.router, prefix=settings.API_V1_STR)
 
 # -------------------------
 # Exception handlers

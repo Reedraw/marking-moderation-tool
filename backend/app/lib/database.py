@@ -29,14 +29,14 @@ async def init_connection(connection: asyncpg.Connection) -> None:
     """
     await connection.set_type_codec(
         "json",
-        encoder=lambda x: json.dumps(x),
-        decoder=lambda x: json.loads(x),
+        encoder=json.dumps,
+        decoder=json.loads,
         schema="pg_catalog",
     )
     await connection.set_type_codec(
         "jsonb",
-        encoder=lambda x: json.dumps(x),
-        decoder=lambda x: json.loads(x),
+        encoder=json.dumps,
+        decoder=json.loads,
         schema="pg_catalog",
     )
 
