@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui";
 import { ApiError } from "@/lib/api-client";
-import { getThirdMarkerQueue, getThirdMarkerDashboardStats, type Assessment } from "@/lib/assessments-api";
+import { getThirdMarkerQueue, type Assessment } from "@/lib/assessments-api";
 
 export function ThirdMarkerDashboard() {
   const router = useRouter();

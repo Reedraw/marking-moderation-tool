@@ -60,9 +60,14 @@ CREATE TABLE IF NOT EXISTS module_runs (
   cohort_size INT DEFAULT 0 CHECK (cohort_size >= 0),
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (module_id, academic_year, semester)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Enforce uniqueness of module runs across module, academic year, and semester,
+-- treating NULL semester values as a concrete sentinel so that only one NULL
+-- semester run is allowed per (module_id, academic_year).
+CREATE UNIQUE INDEX IF NOT EXISTS ux_module_runs_module_year_semester
+  ON module_runs (module_id, academic_year, COALESCE(semester, '__NO_SEMESTER__'));
 
 CREATE TABLE IF NOT EXISTS students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

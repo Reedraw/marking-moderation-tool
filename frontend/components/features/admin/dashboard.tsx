@@ -52,20 +52,6 @@ export function AdminDashboard() {
     });
   }
 
-  function getStatusClasses(status: string): string {
-    const classMap: Record<string, string> = {
-      DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
-      MARKS_UPLOADED: "bg-blue-50 text-blue-700 border-blue-200",
-      SAMPLE_GENERATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
-      SUBMITTED_FOR_MODERATION: "bg-yellow-50 text-yellow-800 border-yellow-200",
-      IN_MODERATION: "bg-purple-50 text-purple-700 border-purple-200",
-      APPROVED: "bg-green-50 text-green-700 border-green-200",
-      CHANGES_REQUESTED: "bg-red-50 text-red-700 border-red-200",
-      ESCALATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    };
-    return `inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${classMap[status] || "bg-gray-50 text-gray-700 border-gray-200"}`;
-  }
-
   function getRoleClasses(role: string): string {
     const classMap: Record<string, string> = {
       lecturer: "bg-blue-50 text-blue-700 border-blue-200",
