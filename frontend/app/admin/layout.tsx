@@ -17,26 +17,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Dashboard
             </Link>
 
-            {/* Optional future pages (prototype links) */}
             <Link
               href="/admin/users"
               className="block rounded-xl px-3 py-2 hover:bg-gray-100"
             >
-              Users (prototype)
+              Users
             </Link>
 
             <Link
               href="/admin/modules"
               className="block rounded-xl px-3 py-2 hover:bg-gray-100"
             >
-              Modules (prototype)
+              Modules
             </Link>
 
             <Link
               href="/admin/audit-log"
               className="block rounded-xl px-3 py-2 hover:bg-gray-100"
             >
-              Audit log (prototype)
+              Audit Log
             </Link>
 
             <Link
@@ -46,11 +45,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Sign out
             </Link>
           </nav>
-
-          <div className="mt-8 rounded-xl border bg-gray-50 p-3 text-xs text-gray-600">
-            Prototype scope: Admin is read-only.
-            <div className="mt-1">Configuration pages can be implemented later.</div>
-          </div>
         </aside>
 
         {/* Main */}

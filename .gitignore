@@ -1,6 +1,8 @@
 .env
 .venv/
 more_context/
+AGENTS.md
+.pytest_cache/
 
 # IDEs
 .vscode/

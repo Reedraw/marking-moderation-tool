@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { login, setToken, setUser, getRoleBasedRedirect, ApiError } from "@/lib/auth";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -12,37 +16,25 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!username.trim()) return setError("Please enter a username.");
-    if (!password) return setError("Please enter a password.");
+    if (!email.trim()) {
+      return setError("Please enter your email address.");
+    }
+    if (!password) {
+      return setError("Please enter a password.");
+    }
 
     setSubmitting(true);
     try {
-      // TODO (backend): POST /auth/login { username, password }
-      // Expect: { access_token, user: { id, role } }
-      // Then: store token (httpOnly cookie or memory) + redirect by role
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-
-      if (!res.ok) {
-        let msg = "Login failed.";
-        try {
-          const data = await res.json();
-          msg = data?.detail ?? data?.message ?? msg;
-        } catch {
-          // ignore JSON parse errors
-        }
-        setError(msg);
-        return;
+      const data = await login({ email: email.trim().toLowerCase(), password });
+      setToken(data.access_token);
+      setUser(data.user);
+      router.push(getRoleBasedRedirect());
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.detail);
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
       }
-
-      // Handle successful login - redirect based on role
-      const data = await res.json();
-      // TODO: Implement role-based redirect
-    } catch (err: any) {
-      setError(err?.message ?? "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -62,13 +54,14 @@ export default function LoginPage() {
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
-            <label htmlFor="username" className="text-sm font-medium">Username</label>
+            <label htmlFor="email" className="text-sm font-medium">Email</label>
             <input
-              id="username"
+              id="email"
+              type="email"
               className="mt-1 w-full rounded-xl border px-3 py-2"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
             />
           </div>
 
@@ -92,7 +85,15 @@ export default function LoginPage() {
             {submitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Don't have an account?{" "}
+          <Link href="/register" className="text-blue-600 hover:underline">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );
 }
+

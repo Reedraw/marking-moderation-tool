@@ -18,14 +18,6 @@ export default function ModeratorLayout({ children }: { children: React.ReactNod
               Dashboard
             </Link>
 
-            {/* Optional later pages */}
-            {/* <Link
-              href="/moderator/history"
-              className="block rounded-xl px-3 py-2 hover:bg-gray-100"
-            >
-              History
-            </Link> */}
-
             <Link
               href="/login"
               className="block rounded-xl px-3 py-2 hover:bg-gray-100 text-red-600"
@@ -33,11 +25,6 @@ export default function ModeratorLayout({ children }: { children: React.ReactNod
               Sign out
             </Link>
           </nav>
-
-          <div className="mt-8 rounded-xl border bg-gray-50 p-3 text-xs text-gray-600">
-            Prototype build.
-            <div className="mt-1">FastAPI endpoints are marked as TODO on pages.</div>
-          </div>
         </aside>
 
         {/* Main */}

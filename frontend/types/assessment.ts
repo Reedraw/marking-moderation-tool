@@ -5,8 +5,14 @@ export type AssessmentStatus =
   | "SUBMITTED_FOR_MODERATION"
   | "IN_MODERATION"
   | "APPROVED"
-  | "CHANGES_REQUESTED";
+  | "CHANGES_REQUESTED"
+  | "ESCALATED";
 
+/**
+ * @deprecated Use Assessment from lib/assessments-api.ts instead.
+ * This type uses camelCase which doesn't match backend API responses.
+ * The backend returns snake_case field names.
+ */
 export type Assessment = {
   id: string;
   moduleCode: string;

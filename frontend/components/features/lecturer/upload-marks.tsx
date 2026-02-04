@@ -1,13 +1,109 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui";
+import { ApiError } from "@/lib/api-client";
+import { uploadMarks, type MarkUpload } from "@/lib/assessments-api";
 
 interface UploadMarksProps {
   assessmentId: string;
 }
 
 export function UploadMarks({ assessmentId }: UploadMarksProps) {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ processed: number; skipped: number; errors: string[] } | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+    }
+  }
+
+  async function parseCSV(file: File): Promise<MarkUpload[]> {
+    const text = await file.text();
+    const lines = text.trim().split("\n");
+    const marks: MarkUpload[] = [];
+
+    // Skip header row
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(",").map(p => p.trim());
+      if (parts.length >= 2) {
+        marks.push({
+          student_id: parts[0],
+          mark: parseFloat(parts[1]),
+          marker_id: parts[2] || undefined,
+        });
+      }
+    }
+
+    return marks;
+  }
+
+  async function handleUpload() {
+    if (!file) {
+      setError("Please select a file first");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const marks = await parseCSV(file);
+      if (marks.length === 0) {
+        setError("No valid marks found in the CSV file");
+        setUploading(false);
+        return;
+      }
+
+      const response = await uploadMarks(assessmentId, marks);
+      setResult(response);
+
+      if (response.errors.length === 0) {
+        // Redirect back to assessment detail after successful upload
+        setTimeout(() => {
+          router.push(`/lecturer/assessments/${assessmentId}`);
+        }, 2000);
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          router.push("/login");
+        } else {
+          setError(err.detail);
+        }
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to upload marks");
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function downloadTemplate() {
+    const template = "student_id,mark,marker_id\nw1234567,72,m001\nw7654321,65,m002\n";
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "marks_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
@@ -26,6 +122,30 @@ export function UploadMarks({ assessmentId }: UploadMarksProps) {
         </div>
       </header>
 
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${result.errors.length > 0 ? "border-yellow-200 bg-yellow-50 text-yellow-700" : "border-green-200 bg-green-50 text-green-700"}`}>
+          <div className="font-medium">Upload complete</div>
+          <div>Processed: {result.processed} marks</div>
+          {result.skipped > 0 && <div>Skipped: {result.skipped}</div>}
+          {result.errors.length > 0 && (
+            <div className="mt-2">
+              <div className="font-medium">Errors:</div>
+              <ul className="list-disc pl-5 text-xs">
+                {result.errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <Card className="">
         <div className="p-5">
           <h2 className="text-lg font-semibold">CSV upload</h2>
@@ -42,25 +162,36 @@ export function UploadMarks({ assessmentId }: UploadMarksProps) {
 
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept=".csv"
+                onChange={handleFileChange}
                 className="block w-full text-sm text-gray-700
                            file:mr-4 file:rounded-xl file:border file:bg-white
                            file:px-4 file:py-2 file:text-sm file:hover:bg-gray-50"
               />
 
-              <button className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90">
-                Upload
+              <button
+                onClick={handleUpload}
+                disabled={!file || uploading}
+                className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {uploading ? "Uploading..." : "Upload"}
               </button>
 
-              <button className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50">
+              <button
+                onClick={downloadTemplate}
+                className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50"
+              >
                 Download template
               </button>
             </div>
 
-            <div className="mt-4 text-xs text-gray-500">
-              TODO: POST /api/lecturer/assessments/{assessmentId}/marks/upload
-            </div>
+            {file && (
+              <div className="mt-3 text-sm text-gray-600">
+                Selected: {file.name}
+              </div>
+            )}
           </div>
 
           {/* Expected columns */}

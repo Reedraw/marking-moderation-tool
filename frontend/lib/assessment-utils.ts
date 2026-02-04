@@ -10,6 +10,7 @@ export function formatAssessmentStatus(status: AssessmentStatus): { label: strin
     IN_MODERATION: { label: "In moderation", badge: "info" },
     APPROVED: { label: "Approved", badge: "success" },
     CHANGES_REQUESTED: { label: "Changes requested", badge: "danger" },
+    ESCALATED: { label: "Escalated", badge: "warning" },
   };
   return statusMap[status] || { label: status, badge: "default" };
 }

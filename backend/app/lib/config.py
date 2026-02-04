@@ -1,101 +1,64 @@
-import json
-from enum import Enum
-from typing import Any
 from pathlib import Path
+from os import environ
 
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
-# Resolve project root:
-# app/lib/config.py → app → backend → project root
 BASE_DIR = Path(__file__).resolve().parents[3]
 
+# Load .env file
+try:
+    from dotenv import load_dotenv
+    env_file = BASE_DIR / ".env"
+    load_dotenv(env_file)
+except ImportError:
+    pass
 
-class Environment(str, Enum):
+
+class Environment(str):
     DEVELOPMENT = "development"
     PRODUCTION = "production"
     TEST = "test"
 
 
-class Settings(BaseSettings):
+class Settings:
     """
     Application configuration loaded from environment variables.
     """
 
-    model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    def __init__(self):
+        self.APP_NAME: str = environ.get("APP_NAME", "MMT_API")
+        self.ENVIRONMENT: str = environ.get("ENVIRONMENT", "development")
+        self.HOST: str = environ.get("HOST", "127.0.0.1")
+        self.PORT: int = int(environ.get("PORT", "8000"))
+        self.API_V1_STR: str = environ.get("API_V1_STR", "")
+        self.DATABASE_URL: str = environ.get("DATABASE_URL", "")
+        self.SECRET_KEY: str = environ.get("SECRET_KEY", "")
+        self.ALGORITHM: str = environ.get("ALGORITHM", "HS256")
+        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-    # -------------------------
-    # Core app settings
-    # -------------------------
-    APP_NAME: str = "MMT_API"
-    ENVIRONMENT: Environment = Environment.DEVELOPMENT
-
-    HOST: str = "127.0.0.1"
-    PORT: int = 8000
-
-    API_V1_STR: str = ""
-
-    # -------------------------
-    # Database
-    # -------------------------
-    DATABASE_URL: str 
-
-    # -------------------------
-    # Security
-    # -------------------------
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-
-    # -------------------------
-    # CORS
-    # -------------------------
-    CORS_ORIGINS: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000"],
-        description="Allowed CORS origins",
-    )
-    CORS_ALLOW_CREDENTIALS: bool = True
-    CORS_ALLOW_METHODS: list[str] = Field(
-        default_factory=lambda: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    )
-    CORS_ALLOW_HEADERS: list[str] = Field(
-        default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"]
-    )
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, value: Any) -> list[str]:
-        if value is None or value == "":
-            return []
-        if isinstance(value, str):
+        cors_origins_str = environ.get("CORS_ORIGINS", '["http://localhost:3000"]')
+        if cors_origins_str:
             try:
-                parsed = json.loads(value)
-                if isinstance(parsed, list):
-                    return [str(x) for x in parsed]
-            except json.JSONDecodeError:
-                return [v.strip() for v in value.split(",") if v.strip()]
-        if isinstance(value, list):
-            return value
-        raise TypeError("CORS_ORIGINS must be a list or a string")
+                import json
+                self.CORS_ORIGINS = json.loads(cors_origins_str)
+                if not isinstance(self.CORS_ORIGINS, list):
+                    self.CORS_ORIGINS = [str(x) for x in self.CORS_ORIGINS]
+            except:
+                self.CORS_ORIGINS = [v.strip() for v in cors_origins_str.split(",") if v.strip()]
+        else:
+            self.CORS_ORIGINS = ["http://localhost:3000"]
 
-    # -------------------------
-    # Logging
-    # -------------------------
-    LOG_LEVEL: str = "INFO"
+        self.CORS_ALLOW_CREDENTIALS = environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+        self.CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+        self.CORS_ALLOW_HEADERS = ["Authorization", "Content-Type", "X-Request-ID"]
+        self.LOG_LEVEL: str = environ.get("LOG_LEVEL", "INFO")
 
-    # -------------------------
-    # Helpers
-    # -------------------------
     def is_dev(self) -> bool:
-        return self.ENVIRONMENT == Environment.DEVELOPMENT
+        return self.ENVIRONMENT == "development"
 
     def is_prod(self) -> bool:
-        return self.ENVIRONMENT == Environment.PRODUCTION
+        return self.ENVIRONMENT == "production"
 
 
 settings = Settings()
