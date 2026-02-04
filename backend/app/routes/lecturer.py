@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -6,11 +5,10 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.lib.database import get_database
-from app.lib.security import get_current_user, require_role
+from app.lib.security import require_role
 from app.models import (
     AssessmentOut,
     AssessmentCreate,
-    AssessmentUpdate,
     MarksUploadRequest,
     MarksUploadResponse,
     SampleGenerateRequest,

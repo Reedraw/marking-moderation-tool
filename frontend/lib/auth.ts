@@ -1,7 +1,5 @@
 import { apiRequest, ApiError } from "./api-client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-
 interface LoginCredentials {
   email: string;
   password: string;

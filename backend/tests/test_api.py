@@ -14,7 +14,6 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from app.lib.config import settings
 from app.lib.database import connect_to_db, close_db_connection, get_database
 
 

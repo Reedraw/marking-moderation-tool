@@ -5,24 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui";
 import { ApiError } from "@/lib/auth";
-import { getLecturerAssessments, getLecturerDashboardStats, type Assessment } from "@/lib/assessments-api";
+import { getLecturerAssessments, type Assessment } from "@/lib/assessments-api";
 
 export function LecturerDashboard() {
   const router = useRouter();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [stats, setStats] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [assessmentsData, statsData] = await Promise.all([
-          getLecturerAssessments(),
-          getLecturerDashboardStats(),
-        ]);
+        const assessmentsData = await getLecturerAssessments();
         setAssessments(assessmentsData);
-        setStats(statsData);
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.status === 401) {
