@@ -1,6 +1,5 @@
 /* ============================================================
-   Marking Moderation Tool - Database Setup v2
-   Fixed to match backend query expectations
+   Marking Moderation Tool - Database Schema Setup
    ============================================================ */
 
 BEGIN;
