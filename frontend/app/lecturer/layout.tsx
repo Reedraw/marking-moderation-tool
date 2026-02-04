@@ -17,7 +17,6 @@ export default function LecturerLayout({ children }: { children: React.ReactNode
               Dashboard
             </Link>
 
-            {/* Later: profile/settings */}
             <Link
               href="/login"
               className="block rounded-xl px-3 py-2 hover:bg-gray-100 text-red-600"
@@ -25,11 +24,6 @@ export default function LecturerLayout({ children }: { children: React.ReactNode
               Sign out
             </Link>
           </nav>
-
-          <div className="mt-8 rounded-xl border bg-gray-50 p-3 text-xs text-gray-600">
-            Frontend-first build.
-            <div className="mt-1">Backend endpoints are marked as TODO on pages.</div>
-          </div>
         </aside>
 
         {/* Main */}

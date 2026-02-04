@@ -43,12 +43,12 @@ class Settings(BaseSettings):
     # -------------------------
     # Database
     # -------------------------
-    DATABASE_URL: str 
+    DATABASE_URL: str = Field(..., description="PostgreSQL database connection URL")
 
     # -------------------------
     # Security
     # -------------------------
-    SECRET_KEY: str
+    SECRET_KEY: str = Field(..., description="Secret key for JWT token signing")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -69,28 +69,26 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value: Any) -> list[str]:
-        if value is None or value == "":
-            return []
-        if isinstance(value, str):
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        """Parse CORS_ORIGINS from JSON string or comma-separated values."""
+        if isinstance(v, str):
             try:
-                parsed = json.loads(value)
+                parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    return [str(x) for x in parsed]
+                    return [str(x).strip() for x in parsed]
             except json.JSONDecodeError:
-                return [v.strip() for v in value.split(",") if v.strip()]
-        if isinstance(value, list):
-            return value
-        raise TypeError("CORS_ORIGINS must be a list or a string")
+                pass
+            # Fallback to comma-separated
+            return [x.strip() for x in v.split(",") if x.strip()]
+        if isinstance(v, list):
+            return [str(x).strip() for x in v]
+        return ["http://localhost:3000"]
 
     # -------------------------
     # Logging
     # -------------------------
     LOG_LEVEL: str = "INFO"
 
-    # -------------------------
-    # Helpers
-    # -------------------------
     def is_dev(self) -> bool:
         return self.ENVIRONMENT == Environment.DEVELOPMENT
 

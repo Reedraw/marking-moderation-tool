@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.lib.config import settings
 from app.lib.database import get_database
 from app.lib.password import verify_password
-from app.lib.security import create_access_token
+from app.lib.security import create_access_token, get_current_user
 from app.models import (
     UserCreate,
     UserLogin,
@@ -148,5 +148,19 @@ async def login(credentials: UserLogin, request: Request, db: asyncpg.Pool = Dep
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": user,  # response_model will shape it to UserOut
+        "user": user,
     }
+
+
+@router.get("/me", response_model=UserOut)
+async def get_current_user_info(
+    current_user: dict = Depends(get_current_user),
+):
+    """Get current authenticated user info."""
+    return current_user
+
+
+@router.post("/logout")
+async def logout():
+    """Logout endpoint (stateless JWT - client should discard token)."""
+    return {"message": "Logged out successfully"}

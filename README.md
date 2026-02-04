@@ -413,16 +413,6 @@ For questions or issues:
 - ✅ Authentication system implemented
 - 🚧 Backend API endpoints (in progress)
 
-### Upcoming Features
-- [ ] CSV mark upload functionality
-- [ ] Automated sample generation algorithms
-- [ ] Email notifications for workflow events
-- [ ] Advanced reporting and analytics
-- [ ] Bulk operations for administrators
-- [ ] Export functionality (PDF reports)
-- [ ] Mobile-responsive optimizations
-- [ ] Real-time collaboration features
-
 ---
 
 **Note**: This project is actively under development. Frontend interfaces are complete with mock data. Backend API integration is in progress. Check `TODO` comments in code for pending integrations.

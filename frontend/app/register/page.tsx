@@ -1,19 +1,18 @@
-// frontend/app/register/page.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { register, ApiError } from "@/lib/auth";
 
 type Role = "lecturer" | "moderator" | "third_marker" | "admin";
 
-// Password complexity requirements: min 8 chars, at least one uppercase, one lowercase, one digit, and one special character
 const PASSWORD_COMPLEXITY_REGEX = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}/;
 
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [fullName, setFullName] = useState(""); // NEW
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("lecturer");
@@ -29,58 +28,54 @@ export default function RegisterPage() {
     setError(null);
     setSuccessMsg(null);
 
-    const fn = fullName.trim(); // NEW
+    const fn = fullName.trim();
     const u = username.trim();
     const em = email.trim();
 
-    if (!u) return setError("Please enter a username.");
-    if (!em) return setError("Please enter an email.");
-    if (!password) return setError("Please enter a password.");
-    if (password.length < 8) return setError("Password must be at least 8 characters.");
+    if (!u) {
+      return setError("Please enter a username.");
+    }
+    if (!em) {
+      return setError("Please enter an email.");
+    }
+    if (!password) {
+      return setError("Please enter a password.");
+    }
+    if (password.length < 8) {
+      return setError("Password must be at least 8 characters.");
+    }
     if (!PASSWORD_COMPLEXITY_REGEX.test(password)) {
       return setError(
         "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character."
       );
     }
-    if (password !== confirmPassword) return setError("Passwords do not match.");
+    if (password !== confirmPassword) {
+      return setError("Passwords do not match.");
+    }
 
     setSubmitting(true);
     try {
-      // TODO (backend FastAPI):
-      // POST /api/auth/register
-      // Body: { full_name?, username, email, password, role }
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: fn || null, // NEW (optional)
-          username: u,
-          email: em,
-          password,
-          role,
-        }),
+      await register({
+        full_name: fn || null,
+        username: u,
+        email: em,
+        password,
+        role,
       });
-
-      if (!res.ok) {
-        // Expect FastAPI to return { detail: "..." } or validation errors
-        let msg = "Registration failed.";
-        try {
-          const data = await res.json();
-          msg =
-            data?.detail ??
-            data?.message ??
-            (Array.isArray(data) ? data.map((x: any) => x?.msg).filter(Boolean).join(", ") : msg);
-        } catch {
-          // ignore JSON parse errors
-        }
-        setError(msg);
-        return;
-      }
 
       setSuccessMsg("Account created. Redirecting to login...");
       setTimeout(() => router.push("/login"), 800);
-    } catch (err: any) {
-      setError(err?.message ?? "Something went wrong.");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.errors) {
+          const fieldErrors = Object.values(err.errors).flat().join(", ");
+          setError(fieldErrors);
+        } else {
+          setError(err.detail);
+        }
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +105,6 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-4">
-            {/* Full name (optional) */}
             <div>
               <label htmlFor="fullName" className="text-sm font-medium">Full name</label>
               <input
@@ -167,9 +161,6 @@ export default function RegisterPage() {
                 <option value="third_marker">Third Marker</option>
                 <option value="admin">Admin</option>
               </select>
-              <div className="mt-1 text-xs text-gray-500">
-                Prototype only — backend should validate allowed roles.
-              </div>
             </div>
 
             <div>
@@ -214,11 +205,8 @@ export default function RegisterPage() {
             </div>
           </form>
         </div>
-
-        <div className="mt-4 text-center text-xs text-gray-500">
-          TODO (backend): implement <span className="font-mono">POST /api/auth/register</span>
-        </div>
       </div>
     </div>
   );
 }
+

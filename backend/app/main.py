@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.lib.config import settings, Environment
 from app.lib.database import connect_to_db, close_db_connection, get_database
 from app.lib.middleware import add_middleware
-from app.routes import auth
+from app.routes import auth, lecturer, moderator, third_marker, admin
 
 SERVICE_VERSION = "0.1.0"
 
@@ -38,8 +38,11 @@ app = FastAPI(
 
 add_middleware(app)
 
-# Add Routes here
 app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(lecturer.router, prefix=settings.API_V1_STR)
+app.include_router(moderator.router, prefix=settings.API_V1_STR)
+app.include_router(third_marker.router, prefix=settings.API_V1_STR)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
 
 # -------------------------
 # Exception handlers
@@ -52,7 +55,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError):
     - Dev: return full error details
     - Prod: sanitize message to avoid leaking internal schemas
     """
-    if settings.ENVIRONMENT is Environment.DEVELOPMENT:
+    if settings.ENVIRONMENT == Environment.DEVELOPMENT:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={"detail": exc.errors()},
@@ -73,7 +76,7 @@ async def http_exception_handler(_: Request, exc: StarletteHTTPException):
 @app.exception_handler(asyncpg.PostgresError)
 async def database_exception_handler(_: Request, exc: asyncpg.PostgresError):
     msg = "Database error."
-    if settings.ENVIRONMENT is Environment.DEVELOPMENT:
+    if settings.ENVIRONMENT == Environment.DEVELOPMENT:
         msg = f"DB Error: {str(exc)}"
     return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": msg})
 
@@ -81,7 +84,7 @@ async def database_exception_handler(_: Request, exc: asyncpg.PostgresError):
 @app.exception_handler(Exception)
 async def global_exception_handler(_: Request, exc: Exception):
     msg = "Internal server error."
-    if settings.ENVIRONMENT is Environment.DEVELOPMENT:
+    if settings.ENVIRONMENT == Environment.DEVELOPMENT:
         msg = f"Internal Error: {str(exc)}"
     return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": msg})
 
