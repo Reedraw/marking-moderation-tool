@@ -29,6 +29,10 @@ from .assessment import (
     ModerationFormResponse,
     ModerationFormSubmit,
     ModerationFormOut,
+    PreModerationChecklistSubmit,
+    PreModerationChecklistOut,
+    ModuleLeaderResponseSubmit,
+    ModuleLeaderResponseOut,
 )
 
 __all__ = [
@@ -63,6 +67,12 @@ __all__ = [
     "ModerationFormResponse",
     "ModerationFormSubmit",
     "ModerationFormOut",
+    # Pre-moderation checklist models
+    "PreModerationChecklistSubmit",
+    "PreModerationChecklistOut",
+    # Module leader response models
+    "ModuleLeaderResponseSubmit",
+    "ModuleLeaderResponseOut",
     # Types
     "AssessmentStatus",
     "ModerationDecision",

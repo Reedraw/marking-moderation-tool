@@ -176,17 +176,28 @@ export function LecturerDashboard() {
                         <div className="flex justify-end gap-2">
                           <Link
                             href={`/lecturer/assessments/${a.id}`}
-                            className="rounded-xl border bg-white px-3 py-2 hover:bg-gray-50"
+                            className="rounded-xl border bg-white px-3 py-2 text-sm hover:bg-gray-50"
                           >
                             Open
                           </Link>
 
-                          <Link
-                            href={`/lecturer/assessments/${a.id}/upload`}
-                            className="rounded-xl bg-black px-3 py-2 text-white hover:opacity-90"
-                          >
-                            Upload marks
-                          </Link>
+                          {(a.status === "DRAFT" || a.status === "MARKS_UPLOADED" || a.status === "SAMPLE_GENERATED") && (
+                            <Link
+                              href={`/lecturer/assessments/${a.id}/upload`}
+                              className="rounded-xl bg-black px-3 py-2 text-sm text-white hover:opacity-90"
+                            >
+                              Upload marks
+                            </Link>
+                          )}
+
+                          {(a.status === "APPROVED" || a.status === "CHANGES_REQUESTED" || a.status === "ESCALATED") && (
+                            <Link
+                              href={`/lecturer/assessments/${a.id}/response`}
+                              className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white hover:opacity-90"
+                            >
+                              Respond
+                            </Link>
+                          )}
                         </div>
                       </td>
                     </tr>

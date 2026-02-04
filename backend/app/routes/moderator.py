@@ -215,11 +215,29 @@ async def submit_moderation_form(
             detail="Assessment is not in a state that allows moderation form submission",
         )
 
+    # Save the form responses
     result = await save_moderation_form_response(
         db,
         assessment_id=assessment_uuid,
         moderator_id=current_user["id"],
-        form_data=data,
+        form_data=data.form_responses,
+    )
+
+    # Get the moderation case to make the decision
+    moderation_case = await get_moderation_case_by_assessment(db, assessment_uuid)
+    if not moderation_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Moderation case not found",
+        )
+
+    # Make the moderation decision
+    await make_moderation_decision(
+        db,
+        moderation_case_id=moderation_case["id"],
+        decision=data.decision,
+        comment=data.summary_comment,
+        moderator_id=current_user["id"],
     )
 
     await log_audit_event(
@@ -227,7 +245,7 @@ async def submit_moderation_form(
         actor_id=current_user["id"],
         actor_name=current_user["full_name"] or current_user["username"],
         actor_role=current_user["role"],
-        action="Submitted moderation form",
+        action=f"Submitted moderation form with decision: {data.decision}",
         assessment_id=assessment_uuid,
     )
 

@@ -662,5 +662,321 @@ class TestHealthEndpoints:
             assert response.status_code in [200, 503]
 
 
+class TestPreModerationChecklist:
+    """Test pre-moderation checklist endpoints"""
+
+    @pytest.mark.asyncio
+    async def test_submit_checklist(self, client: AsyncClient, db_pool):
+        """Test submitting pre-moderation checklist"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        
+        # Create lecturer and login
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_checklist_{unique_id}",
+                "email": f"lecturer_checklist_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login_response = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_checklist_{unique_id}@example.com", "password": "Password123"}
+        )
+        token = login_response.json()["access_token"]
+        
+        # Create an assessment
+        create_response = await client.post(
+            "/lecturer/assessments",
+            json={
+                "module_code": f"CS{unique_id}",
+                "module_name": "Test Module",
+                "title": "Test Assessment",
+                "cohort": "2024-25",
+                "due_date": "2025-06-30",
+                "weighting": 50,
+                "credit_size": 20
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        # If assessment creation failed, skip this test
+        if create_response.status_code != 201:
+            pytest.skip("Assessment creation failed, skipping checklist test")
+        
+        assessment_id = create_response.json()["id"]
+        
+        # Submit pre-moderation checklist
+        checklist_response = await client.post(
+            f"/lecturer/assessments/{assessment_id}/checklist",
+            json={
+                "marking_in_accordance": True,
+                "late_work_policy_adhered": True,
+                "plagiarism_policy_adhered": True,
+                "marks_available_with_percentages": True,
+                "totalling_checked": True,
+                "consistency_comments": "All markers attended standardisation meeting"
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert checklist_response.status_code == 200
+        data = checklist_response.json()
+        assert data["marking_in_accordance"] == True
+        assert data["late_work_policy_adhered"] == True
+        assert data["plagiarism_policy_adhered"] == True
+        assert data["marks_available_with_percentages"] == True
+        assert data["totalling_checked"] == True
+        assert data["consistency_comments"] == "All markers attended standardisation meeting"
+
+    @pytest.mark.asyncio
+    async def test_get_checklist(self, client: AsyncClient, db_pool):
+        """Test getting pre-moderation checklist"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        
+        # Create lecturer and login
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_getchecklist_{unique_id}",
+                "email": f"lecturer_getchecklist_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login_response = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_getchecklist_{unique_id}@example.com", "password": "Password123"}
+        )
+        token = login_response.json()["access_token"]
+        
+        # Create an assessment
+        create_response = await client.post(
+            "/lecturer/assessments",
+            json={
+                "module_code": f"CS{unique_id}",
+                "module_name": "Test Module",
+                "title": "Test Assessment",
+                "cohort": "2024-25",
+                "due_date": "2025-06-30",
+                "weighting": 50,
+                "credit_size": 20
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if create_response.status_code != 201:
+            pytest.skip("Assessment creation failed, skipping checklist test")
+        
+        assessment_id = create_response.json()["id"]
+        
+        # Submit checklist first
+        await client.post(
+            f"/lecturer/assessments/{assessment_id}/checklist",
+            json={
+                "marking_in_accordance": True,
+                "late_work_policy_adhered": False,
+                "plagiarism_policy_adhered": True,
+                "marks_available_with_percentages": True,
+                "totalling_checked": False,
+                "consistency_comments": "Test comments"
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        # Get checklist
+        get_response = await client.get(
+            f"/lecturer/assessments/{assessment_id}/checklist",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert get_response.status_code == 200
+        data = get_response.json()
+        assert data["marking_in_accordance"] == True
+        assert data["late_work_policy_adhered"] == False
+        assert data["totalling_checked"] == False
+
+    @pytest.mark.asyncio
+    async def test_checklist_not_found(self, client: AsyncClient, db_pool):
+        """Test getting checklist that doesn't exist"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        
+        # Create lecturer and login
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_nochk_{unique_id}",
+                "email": f"lecturer_nochk_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login_response = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_nochk_{unique_id}@example.com", "password": "Password123"}
+        )
+        token = login_response.json()["access_token"]
+        
+        # Create an assessment without checklist
+        create_response = await client.post(
+            "/lecturer/assessments",
+            json={
+                "module_code": f"CS{unique_id}",
+                "module_name": "Test Module",
+                "title": "Test Assessment",
+                "cohort": "2024-25",
+                "due_date": "2025-06-30",
+                "weighting": 50,
+                "credit_size": 20
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if create_response.status_code != 201:
+            pytest.skip("Assessment creation failed")
+        
+        assessment_id = create_response.json()["id"]
+        
+        # Try to get non-existent checklist
+        get_response = await client.get(
+            f"/lecturer/assessments/{assessment_id}/checklist",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert get_response.status_code == 404
+
+
+class TestModuleLeaderResponse:
+    """Test module leader response endpoints"""
+
+    @pytest.mark.asyncio
+    async def test_response_no_moderation_case(self, client: AsyncClient, db_pool):
+        """Test submitting response when no moderation case exists"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        
+        # Create lecturer and login
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_resp_{unique_id}",
+                "email": f"lecturer_resp_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login_response = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_resp_{unique_id}@example.com", "password": "Password123"}
+        )
+        token = login_response.json()["access_token"]
+        
+        # Create an assessment
+        create_response = await client.post(
+            "/lecturer/assessments",
+            json={
+                "module_code": f"CS{unique_id}",
+                "module_name": "Test Module",
+                "title": "Test Assessment",
+                "cohort": "2024-25",
+                "due_date": "2025-06-30",
+                "weighting": 50,
+                "credit_size": 20
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if create_response.status_code != 201:
+            pytest.skip("Assessment creation failed")
+        
+        assessment_id = create_response.json()["id"]
+        
+        # Try to submit response (should fail - no moderation case)
+        response = await client.post(
+            f"/lecturer/assessments/{assessment_id}/response",
+            json={
+                "moderator_comments_considered": True,
+                "response_to_issues": "Addressed all issues",
+                "outliers_explanation": "No outliers",
+                "needs_third_marker": False
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 400
+        assert "No moderation case found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_response_unauthorized(self, client: AsyncClient, db_pool):
+        """Test submitting response for someone else's assessment"""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        
+        # Create first lecturer
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_owner_{unique_id}",
+                "email": f"lecturer_owner_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login1 = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_owner_{unique_id}@example.com", "password": "Password123"}
+        )
+        token1 = login1.json()["access_token"]
+        
+        # Create second lecturer
+        await client.post(
+            "/auth/register",
+            json={
+                "username": f"lecturer_other_{unique_id}",
+                "email": f"lecturer_other_{unique_id}@example.com",
+                "password": "Password123",
+                "role": "lecturer",
+            }
+        )
+        login2 = await client.post(
+            "/auth/login",
+            json={"email": f"lecturer_other_{unique_id}@example.com", "password": "Password123"}
+        )
+        token2 = login2.json()["access_token"]
+        
+        # Create assessment as first lecturer
+        create_response = await client.post(
+            "/lecturer/assessments",
+            json={
+                "module_code": f"CS{unique_id}",
+                "module_name": "Test Module",
+                "title": "Test Assessment",
+                "cohort": "2024-25",
+                "due_date": "2025-06-30",
+                "weighting": 50,
+                "credit_size": 20
+            },
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        
+        if create_response.status_code != 201:
+            pytest.skip("Assessment creation failed")
+        
+        assessment_id = create_response.json()["id"]
+        
+        # Try to submit response as second lecturer (should fail - not authorized)
+        response = await client.post(
+            f"/lecturer/assessments/{assessment_id}/response",
+            json={
+                "moderator_comments_considered": True,
+                "response_to_issues": "Addressed all issues",
+                "outliers_explanation": "No outliers",
+                "needs_third_marker": False
+            },
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert response.status_code == 403
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

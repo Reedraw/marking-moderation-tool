@@ -3,6 +3,7 @@
 more_context/
 AGENTS.md
 .pytest_cache/
+register_users.py
 
 # IDEs
 .vscode/

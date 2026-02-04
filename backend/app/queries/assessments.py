@@ -695,7 +695,7 @@ async def create_module_run(
         """
         INSERT INTO module_runs (module_id, academic_year, semester, cohort_size, created_by)
         VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (module_id, academic_year, semester) 
+        ON CONFLICT (module_id, academic_year, COALESCE(semester, '__NO_SEMESTER__'))
         DO UPDATE SET cohort_size = $4, updated_at = NOW()
         RETURNING id, module_id, academic_year, semester, cohort_size, created_by, created_at, updated_at
         """,
@@ -824,6 +824,145 @@ async def get_latest_moderation_form_response(
         WHERE mc.assessment_id = $1
         ORDER BY mfr.created_at DESC
         LIMIT 1
+        """,
+        assessment_id,
+    )
+    return dict(row) if row else None
+
+
+# ===============================
+# Pre-Moderation Checklist Queries
+# ===============================
+
+async def save_pre_moderation_checklist(
+    db: asyncpg.Pool,
+    assessment_id: UUID,
+    user_id: UUID,
+    marking_in_accordance: bool,
+    late_work_policy_adhered: bool,
+    plagiarism_policy_adhered: bool,
+    marks_available_with_percentages: bool,
+    totalling_checked: bool,
+    consistency_comments: Optional[str],
+) -> dict[str, Any]:
+    """Save or update pre-moderation checklist for an assessment."""
+    row = await db.fetchrow(
+        """
+        INSERT INTO pre_moderation_checklists (
+            assessment_id, completed_by, marking_in_accordance, late_work_policy_adhered,
+            plagiarism_policy_adhered, marks_available_with_percentages, totalling_checked,
+            consistency_comments
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (assessment_id) DO UPDATE SET
+            completed_by = EXCLUDED.completed_by,
+            marking_in_accordance = EXCLUDED.marking_in_accordance,
+            late_work_policy_adhered = EXCLUDED.late_work_policy_adhered,
+            plagiarism_policy_adhered = EXCLUDED.plagiarism_policy_adhered,
+            marks_available_with_percentages = EXCLUDED.marks_available_with_percentages,
+            totalling_checked = EXCLUDED.totalling_checked,
+            consistency_comments = EXCLUDED.consistency_comments,
+            updated_at = NOW()
+        RETURNING *
+        """,
+        assessment_id,
+        user_id,
+        marking_in_accordance,
+        late_work_policy_adhered,
+        plagiarism_policy_adhered,
+        marks_available_with_percentages,
+        totalling_checked,
+        consistency_comments,
+    )
+    return dict(row)
+
+
+async def get_pre_moderation_checklist(
+    db: asyncpg.Pool,
+    assessment_id: UUID,
+) -> Optional[dict[str, Any]]:
+    """Get pre-moderation checklist for an assessment."""
+    row = await db.fetchrow(
+        """
+        SELECT pmc.*, u.full_name as completed_by_name
+        FROM pre_moderation_checklists pmc
+        LEFT JOIN users u ON pmc.completed_by = u.id
+        WHERE pmc.assessment_id = $1
+        """,
+        assessment_id,
+    )
+    return dict(row) if row else None
+
+
+# ===============================
+# Module Leader Response Queries
+# ===============================
+
+async def save_module_leader_response(
+    db: asyncpg.Pool,
+    moderation_case_id: UUID,
+    user_id: UUID,
+    moderator_comments_considered: bool,
+    response_to_issues: Optional[str],
+    outliers_explanation: Optional[str],
+    needs_third_marker: bool,
+) -> dict[str, Any]:
+    """Save or update module leader response for a moderation case."""
+    row = await db.fetchrow(
+        """
+        INSERT INTO module_leader_responses (
+            moderation_case_id, completed_by, moderator_comments_considered,
+            response_to_issues, outliers_explanation, needs_third_marker
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (moderation_case_id) DO UPDATE SET
+            completed_by = EXCLUDED.completed_by,
+            moderator_comments_considered = EXCLUDED.moderator_comments_considered,
+            response_to_issues = EXCLUDED.response_to_issues,
+            outliers_explanation = EXCLUDED.outliers_explanation,
+            needs_third_marker = EXCLUDED.needs_third_marker,
+            updated_at = NOW()
+        RETURNING *
+        """,
+        moderation_case_id,
+        user_id,
+        moderator_comments_considered,
+        response_to_issues,
+        outliers_explanation,
+        needs_third_marker,
+    )
+    return dict(row)
+
+
+async def get_module_leader_response(
+    db: asyncpg.Pool,
+    moderation_case_id: UUID,
+) -> Optional[dict[str, Any]]:
+    """Get module leader response for a moderation case."""
+    row = await db.fetchrow(
+        """
+        SELECT mlr.*, u.full_name as completed_by_name
+        FROM module_leader_responses mlr
+        LEFT JOIN users u ON mlr.completed_by = u.id
+        WHERE mlr.moderation_case_id = $1
+        """,
+        moderation_case_id,
+    )
+    return dict(row) if row else None
+
+
+async def get_module_leader_response_by_assessment(
+    db: asyncpg.Pool,
+    assessment_id: UUID,
+) -> Optional[dict[str, Any]]:
+    """Get module leader response for an assessment's moderation case."""
+    row = await db.fetchrow(
+        """
+        SELECT mlr.*, u.full_name as completed_by_name
+        FROM module_leader_responses mlr
+        JOIN moderation_cases mc ON mlr.moderation_case_id = mc.id
+        LEFT JOIN users u ON mlr.completed_by = u.id
+        WHERE mc.assessment_id = $1
         """,
         assessment_id,
     )

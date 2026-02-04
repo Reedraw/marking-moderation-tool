@@ -257,3 +257,61 @@ class AuditEventOut(BaseModel):
     assessment_id: Optional[UUID]
 
     model_config = {"from_attributes": True}
+
+
+# ===============================
+# Pre-Moderation Checklist Models
+# ===============================
+
+class PreModerationChecklistSubmit(BaseModel):
+    """Input for submitting pre-moderation checklist (Lecturer/Module Leader)"""
+    marking_in_accordance: bool
+    late_work_policy_adhered: bool
+    plagiarism_policy_adhered: bool
+    marks_available_with_percentages: bool
+    totalling_checked: bool
+    consistency_comments: Optional[str] = None
+
+
+class PreModerationChecklistOut(BaseModel):
+    """Output for pre-moderation checklist"""
+    id: UUID
+    assessment_id: UUID
+    completed_by: Optional[UUID]
+    marking_in_accordance: bool
+    late_work_policy_adhered: bool
+    plagiarism_policy_adhered: bool
+    marks_available_with_percentages: bool
+    totalling_checked: bool
+    consistency_comments: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ===============================
+# Module Leader Response Models
+# ===============================
+
+class ModuleLeaderResponseSubmit(BaseModel):
+    """Input for submitting module leader response (after moderator feedback)"""
+    moderator_comments_considered: bool
+    response_to_issues: Optional[str] = None
+    outliers_explanation: Optional[str] = None
+    needs_third_marker: bool
+
+
+class ModuleLeaderResponseOut(BaseModel):
+    """Output for module leader response"""
+    id: UUID
+    moderation_case_id: UUID
+    completed_by: Optional[UUID]
+    moderator_comments_considered: bool
+    response_to_issues: Optional[str]
+    outliers_explanation: Optional[str]
+    needs_third_marker: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

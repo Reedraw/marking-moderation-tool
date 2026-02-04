@@ -10,8 +10,11 @@ import {
   getAssessmentSample,
   generateSample,
   submitForModeration,
+  submitPreModerationChecklist,
+  getPreModerationChecklist,
   type Assessment,
   type SampleItem,
+  type PreModerationChecklistSubmit,
 } from "@/lib/assessments-api";
 
 type Status =
@@ -65,6 +68,17 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
   const [samplePercent, setSamplePercent] = useState(10);
   const [moderatorComment, setModeratorComment] = useState("");
 
+  // Pre-moderation checklist state
+  const [checklist, setChecklist] = useState<PreModerationChecklistSubmit>({
+    marking_in_accordance: false,
+    late_work_policy_adhered: false,
+    plagiarism_policy_adhered: false,
+    marks_available_with_percentages: false,
+    totalling_checked: false,
+    consistency_comments: "",
+  });
+  const [checklistSaved, setChecklistSaved] = useState(false);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -79,6 +93,22 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
           } catch {
             // Sample might not exist yet
           }
+        }
+
+        // Load existing checklist if available
+        try {
+          const existingChecklist = await getPreModerationChecklist(assessmentId);
+          setChecklist({
+            marking_in_accordance: existingChecklist.marking_in_accordance,
+            late_work_policy_adhered: existingChecklist.late_work_policy_adhered,
+            plagiarism_policy_adhered: existingChecklist.plagiarism_policy_adhered,
+            marks_available_with_percentages: existingChecklist.marks_available_with_percentages,
+            totalling_checked: existingChecklist.totalling_checked,
+            consistency_comments: existingChecklist.consistency_comments || "",
+          });
+          setChecklistSaved(true);
+        } catch {
+          // Checklist might not exist yet
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -97,6 +127,29 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
 
     loadData();
   }, [assessmentId, router]);
+
+  // Check if all checklist items are checked
+  const isChecklistComplete = 
+    checklist.marking_in_accordance &&
+    checklist.late_work_policy_adhered &&
+    checklist.plagiarism_policy_adhered &&
+    checklist.marks_available_with_percentages &&
+    checklist.totalling_checked;
+
+  async function handleSaveChecklist() {
+    setError(null);
+    try {
+      await submitPreModerationChecklist(assessmentId, checklist);
+      setChecklistSaved(true);
+      setSuccess("Checklist saved successfully");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.detail);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to save checklist");
+      }
+    }
+  }
 
   async function handleGenerateSample() {
     setGenerating(true);
@@ -127,6 +180,11 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
     setSuccess(null);
 
     try {
+      // First submit/update the pre-moderation checklist
+      await submitPreModerationChecklist(assessmentId, checklist);
+      setChecklistSaved(true);
+
+      // Then submit for moderation
       await submitForModeration(assessmentId, moderatorComment || undefined);
       setSuccess("Assessment submitted for moderation successfully");
       // Reload assessment to get updated status
@@ -181,6 +239,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
 
   const canGenerateSample = assessment.status === "MARKS_UPLOADED" || assessment.status === "SAMPLE_GENERATED";
   const canSubmit = assessment.status === "SAMPLE_GENERATED";
+  const canRespondToModerator = ["IN_MODERATION", "CHANGES_REQUESTED", "APPROVED"].includes(assessment.status);
 
   return (
     <div className="space-y-6">
@@ -194,6 +253,14 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
         </div>
 
         <div className="flex gap-2">
+          {canRespondToModerator && (
+            <Link
+              href={`/lecturer/assessments/${assessmentId}/response`}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:opacity-90"
+            >
+              Respond to Moderator
+            </Link>
+          )}
           <Link
             href={`/lecturer/assessments/${assessmentId}/upload`}
             className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90"
@@ -344,6 +411,115 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
         </Card>
       )}
 
+      {/* Pre-Moderation Checklist */}
+      <Card>
+        <div className="p-5 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Marking Process Checklist</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Complete this checklist before submitting for internal moderation. All items must be checked.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checklist.marking_in_accordance}
+                onChange={(e) => setChecklist({ ...checklist, marking_in_accordance: e.target.checked })}
+                disabled={assessment.status !== "SAMPLE_GENERATED"}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span className="text-sm">
+                Marking was carried out in accordance with Assessment Regulations and the devised marking scheme
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checklist.late_work_policy_adhered}
+                onChange={(e) => setChecklist({ ...checklist, late_work_policy_adhered: e.target.checked })}
+                disabled={assessment.status !== "SAMPLE_GENERATED"}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span className="text-sm">
+                The policy regarding hand in of late work has been adhered to (for coursework)
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checklist.plagiarism_policy_adhered}
+                onChange={(e) => setChecklist({ ...checklist, plagiarism_policy_adhered: e.target.checked })}
+                disabled={assessment.status !== "SAMPLE_GENERATED"}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span className="text-sm">
+                The policy regarding misconduct/plagiarism has been adhered to
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checklist.marks_available_with_percentages}
+                onChange={(e) => setChecklist({ ...checklist, marks_available_with_percentages: e.target.checked })}
+                disabled={assessment.status !== "SAMPLE_GENERATED"}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span className="text-sm">
+                All marks have been made available with percentages of pass/fail/non-submissions
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checklist.totalling_checked}
+                onChange={(e) => setChecklist({ ...checklist, totalling_checked: e.target.checked })}
+                disabled={assessment.status !== "SAMPLE_GENERATED"}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span className="text-sm">
+                The totalling of marks has been checked for correctness
+              </span>
+            </label>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-600">
+              Comments (in case of multiple markers, please state how consistency across markers has been ensured)
+            </label>
+            <textarea
+              value={checklist.consistency_comments}
+              onChange={(e) => setChecklist({ ...checklist, consistency_comments: e.target.value })}
+              disabled={assessment.status !== "SAMPLE_GENERATED"}
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+              rows={3}
+              placeholder="E.g., All markers attended standardisation meeting, double-marked borderline cases..."
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSaveChecklist}
+              disabled={assessment.status !== "SAMPLE_GENERATED"}
+              className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              Save Checklist
+            </button>
+            {checklistSaved && (
+              <span className="text-sm text-green-600">✓ Checklist saved</span>
+            )}
+            {!isChecklistComplete && assessment.status === "SAMPLE_GENERATED" && (
+              <span className="text-sm text-amber-600">Please check all items before submitting</span>
+            )}
+          </div>
+        </div>
+      </Card>
+
       {/* Submit for moderation */}
       <Card>
         <div className="p-5">
@@ -368,7 +544,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               onClick={handleSubmitForModeration}
-              disabled={!canSubmit || submitting}
+              disabled={!canSubmit || !isChecklistComplete || submitting}
               className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
             >
               {submitting ? "Submitting..." : "Submit for moderation"}
@@ -378,6 +554,11 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
                 {assessment.status === "DRAFT" || assessment.status === "MARKS_UPLOADED"
                   ? "Generate a sample first before submitting."
                   : "Already submitted or in progress."}
+              </span>
+            )}
+            {canSubmit && !isChecklistComplete && (
+              <span className="text-sm text-amber-600">
+                Complete the marking process checklist first.
               </span>
             )}
           </div>

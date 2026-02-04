@@ -10,9 +10,11 @@ import {
   getModeratorSample,
   getModerationCase,
   submitModerationDecision,
+  submitModerationForm,
   type Assessment,
   type SampleItem,
   type ModerationCase,
+  type ModerationFormData,
 } from "@/lib/assessments-api";
 
 interface AssessmentReviewProps {
@@ -28,6 +30,14 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [formData, setFormData] = useState<ModerationFormData>({
+    has_marking_rubric: true,
+    criteria_consistently_applied: true,
+    full_range_of_marks_used: true,
+    marks_awarded_fairly: true,
+    feedback_comments_appropriate: true,
+    all_marks_appropriate: true,
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -50,7 +60,7 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
           if (err.status === 401) {
             router.push("/login");
           } else {
-            setError(err.detail);
+            setError(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail));
           }
         } else {
           setError(err instanceof Error ? err.message : "Failed to load data");
@@ -68,14 +78,12 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
     setError(null);
 
     try {
-      await submitModerationDecision(assessmentId, {
-        decision,
-        comment: comment || undefined,
-      });
+      // Submit the moderation form with decision in one request
+      await submitModerationForm(assessmentId, formData, decision, comment || undefined);
       router.push("/moderator/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.detail);
+        setError(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail));
       } else {
         setError(err instanceof Error ? err.message : "Failed to submit decision");
       }
@@ -203,6 +211,255 @@ export function AssessmentReview({ assessmentId }: AssessmentReviewProps) {
               )}
             </tbody>
           </table>
+        </div>
+      </Card>
+
+      {/* Moderation Form - 6 Required Questions */}
+      <Card>
+        <div className="p-5 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold">Moderation Form</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Complete all 6 questions based on your review of the sample
+            </p>
+          </div>
+
+          {/* Q1: Marking Rubric */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              1. Was there a marking rubric for the module?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.has_marking_rubric === true}
+                  onChange={() => setFormData({ ...formData, has_marking_rubric: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.has_marking_rubric === false}
+                  onChange={() => setFormData({ ...formData, has_marking_rubric: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.has_marking_rubric_comment || ""}
+              onChange={(e) => setFormData({ ...formData, has_marking_rubric_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Q2: Criteria Consistently Applied */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              2. Were the marking criteria consistently applied across all scripts?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.criteria_consistently_applied === true}
+                  onChange={() => setFormData({ ...formData, criteria_consistently_applied: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.criteria_consistently_applied === false}
+                  onChange={() => setFormData({ ...formData, criteria_consistently_applied: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.criteria_consistently_applied_comment || ""}
+              onChange={(e) => setFormData({ ...formData, criteria_consistently_applied_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Q3: Full Range of Marks Used */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              3. Was the full range of marks used?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.full_range_of_marks_used === true}
+                  onChange={() => setFormData({ ...formData, full_range_of_marks_used: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.full_range_of_marks_used === false}
+                  onChange={() => setFormData({ ...formData, full_range_of_marks_used: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.full_range_of_marks_used_comment || ""}
+              onChange={(e) => setFormData({ ...formData, full_range_of_marks_used_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Q4: Marks Awarded Fairly */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              4. Were marks awarded fairly?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.marks_awarded_fairly === true}
+                  onChange={() => setFormData({ ...formData, marks_awarded_fairly: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.marks_awarded_fairly === false}
+                  onChange={() => setFormData({ ...formData, marks_awarded_fairly: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.marks_awarded_fairly_comment || ""}
+              onChange={(e) => setFormData({ ...formData, marks_awarded_fairly_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Q5: Feedback Comments Appropriate */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              5. Were feedback comments appropriate and do they justify the marks awarded?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.feedback_comments_appropriate === true}
+                  onChange={() => setFormData({ ...formData, feedback_comments_appropriate: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.feedback_comments_appropriate === false}
+                  onChange={() => setFormData({ ...formData, feedback_comments_appropriate: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.feedback_comments_appropriate_comment || ""}
+              onChange={(e) => setFormData({ ...formData, feedback_comments_appropriate_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Q6: All Marks Appropriate */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              6. Are you able to confirm that all marks in the sample are appropriate?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.all_marks_appropriate === true}
+                  onChange={() => setFormData({ ...formData, all_marks_appropriate: true })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Yes</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.all_marks_appropriate === false}
+                  onChange={() => setFormData({ ...formData, all_marks_appropriate: false })}
+                  className="text-blue-600"
+                />
+                <span className="text-sm">No</span>
+              </label>
+            </div>
+            <textarea
+              value={formData.all_marks_appropriate_comment || ""}
+              onChange={(e) => setFormData({ ...formData, all_marks_appropriate_comment: e.target.value })}
+              placeholder="Optional comment..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              rows={2}
+            />
+          </div>
+
+          {/* Recommendations (shown if Q6 is No) */}
+          {!formData.all_marks_appropriate && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-red-600">
+                Recommendations (Required when marks are not appropriate)
+              </label>
+              <textarea
+                value={formData.recommendations || ""}
+                onChange={(e) => setFormData({ ...formData, recommendations: e.target.value })}
+                placeholder="Provide detailed recommendations for addressing the issues identified..."
+                className="w-full rounded-lg border border-red-300 px-3 py-2 text-sm"
+                rows={4}
+                required
+              />
+            </div>
+          )}
+
+          {/* Feedback Suggestions (shown if Q6 is Yes) */}
+          {formData.all_marks_appropriate && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Feedback Suggestions (Optional)
+              </label>
+              <textarea
+                value={formData.feedback_suggestions || ""}
+                onChange={(e) => setFormData({ ...formData, feedback_suggestions: e.target.value })}
+                placeholder="Any suggestions for improving feedback quality..."
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                rows={3}
+              />
+            </div>
+          )}
         </div>
       </Card>
 

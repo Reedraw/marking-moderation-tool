@@ -229,6 +229,56 @@ CREATE TABLE IF NOT EXISTS moderation_form_responses (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Pre-moderation checklist (completed by Module Leader/Lecturer BEFORE submitting for moderation)
+CREATE TABLE IF NOT EXISTS pre_moderation_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  assessment_id UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE UNIQUE,
+  completed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  
+  -- Checkbox 1: Marking was carried out in accordance with Assessment Regulations and the devised marking scheme
+  marking_in_accordance BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Checkbox 2: The policy regarding hand in of late work has been adhered to (for coursework)
+  late_work_policy_adhered BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Checkbox 3: The policy regarding misconduct/plagiarism has been adhered to
+  plagiarism_policy_adhered BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Checkbox 4: All marks have been made available with percentages of pass/fail/non-submissions
+  marks_available_with_percentages BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Checkbox 5: The totalling of marks has been checked for correctness
+  totalling_checked BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Comments (in the case of several markers please state how consistency across markers has been ensured)
+  consistency_comments TEXT,
+  
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Module Leader Response (completed by Module Leader/Lecturer AFTER receiving moderator feedback)
+CREATE TABLE IF NOT EXISTS module_leader_responses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  moderation_case_id UUID NOT NULL REFERENCES moderation_cases(id) ON DELETE CASCADE UNIQUE,
+  completed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  
+  -- Checkbox: The Moderator's comments and recommendations have been given proper consideration
+  moderator_comments_considered BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Text: Please respond to any issues raised/recommendations made by the internal moderator
+  response_to_issues TEXT,
+  
+  -- Text: Please comment on any outliers from the full range of assessment marks and provide an explanation
+  outliers_explanation TEXT,
+  
+  -- Yes/No: Does the sample need to be assigned to a third marker to confirm the marks are appropriate?
+  needs_third_marker BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS moderation_item_notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   moderation_case_id UUID NOT NULL REFERENCES moderation_cases(id) ON DELETE CASCADE,
@@ -271,6 +321,9 @@ CREATE INDEX IF NOT EXISTS idx_sample_items_set ON sample_items(sample_set_id);
 
 CREATE INDEX IF NOT EXISTS idx_moderation_cases_status ON moderation_cases(status);
 CREATE INDEX IF NOT EXISTS idx_moderation_cases_assessment ON moderation_cases(assessment_id);
+
+CREATE INDEX IF NOT EXISTS idx_pre_moderation_checklists_assessment ON pre_moderation_checklists(assessment_id);
+CREATE INDEX IF NOT EXISTS idx_module_leader_responses_case ON module_leader_responses(moderation_case_id);
 
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_id);

@@ -63,6 +63,69 @@ export interface ModerationDecisionRequest {
   comment: string | undefined;
 }
 
+export interface ModerationFormData {
+  has_marking_rubric: boolean;
+  has_marking_rubric_comment?: string;
+  criteria_consistently_applied: boolean;
+  criteria_consistently_applied_comment?: string;
+  full_range_of_marks_used: boolean;
+  full_range_of_marks_used_comment?: string;
+  marks_awarded_fairly: boolean;
+  marks_awarded_fairly_comment?: string;
+  feedback_comments_appropriate: boolean;
+  feedback_comments_appropriate_comment?: string;
+  all_marks_appropriate: boolean;
+  all_marks_appropriate_comment?: string;
+  recommendations?: string;
+  feedback_suggestions?: string;
+}
+
+// Pre-Moderation Checklist (completed by Module Leader/Lecturer BEFORE moderation)
+export interface PreModerationChecklist {
+  id: string;
+  assessment_id: string;
+  completed_by: string | null;
+  marking_in_accordance: boolean;
+  late_work_policy_adhered: boolean;
+  plagiarism_policy_adhered: boolean;
+  marks_available_with_percentages: boolean;
+  totalling_checked: boolean;
+  consistency_comments: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_by_name?: string;
+}
+
+export interface PreModerationChecklistSubmit {
+  marking_in_accordance: boolean;
+  late_work_policy_adhered: boolean;
+  plagiarism_policy_adhered: boolean;
+  marks_available_with_percentages: boolean;
+  totalling_checked: boolean;
+  consistency_comments?: string;
+}
+
+// Module Leader Response (completed by Module Leader/Lecturer AFTER moderator feedback)
+export interface ModuleLeaderResponse {
+  id: string;
+  moderation_case_id: string;
+  completed_by: string | null;
+  moderator_comments_considered: boolean;
+  response_to_issues: string | null;
+  outliers_explanation: string | null;
+  needs_third_marker: boolean;
+  created_at: string;
+  updated_at: string;
+  completed_by_name?: string;
+}
+
+export interface ModuleLeaderResponseSubmit {
+  moderator_comments_considered: boolean;
+  response_to_issues?: string;
+  outliers_explanation?: string;
+  needs_third_marker: boolean;
+}
+
 export interface ThirdMarkerDecisionRequest {
   decision: "CONFIRM_MODERATOR" | "OVERRIDE_MODERATOR" | "REFER_BACK";
   comment: string | undefined;
@@ -241,6 +304,12 @@ export async function getModerationCase(assessmentId: string): Promise<Moderatio
   });
 }
 
+export async function getLecturerModerationCase(assessmentId: string): Promise<ModerationCase> {
+  return apiRequest<ModerationCase>(`/lecturer/assessments/${assessmentId}/moderation-case`, {
+    requireAuth: true,
+  });
+}
+
 export async function submitModerationDecision(
   assessmentId: string,
   decision: ModerationDecisionRequest
@@ -248,6 +317,23 @@ export async function submitModerationDecision(
   return apiRequest(`/moderator/assessments/${assessmentId}/decision`, {
     method: "POST",
     body: decision,
+    requireAuth: true,
+  });
+}
+
+export async function submitModerationForm(
+  assessmentId: string,
+  formData: ModerationFormData,
+  decision: "APPROVED" | "CHANGES_REQUESTED" | "ESCALATED",
+  summaryComment?: string
+): Promise<{ message: string }> {
+  return apiRequest(`/moderator/assessments/${assessmentId}/form`, {
+    method: "POST",
+    body: {
+      form_responses: formData,
+      decision: decision,
+      summary_comment: summaryComment,
+    },
     requireAuth: true,
   });
 }
@@ -320,6 +406,52 @@ export async function getAllUsers(
 export async function deactivateUser(userId: string): Promise<{ message: string }> {
   return apiRequest(`/admin/users/${userId}/deactivate`, {
     method: "POST",
+    requireAuth: true,
+  });
+}
+
+// ===============================
+// Pre-Moderation Checklist APIs
+// ===============================
+
+export async function submitPreModerationChecklist(
+  assessmentId: string,
+  data: PreModerationChecklistSubmit
+): Promise<PreModerationChecklist> {
+  return apiRequest(`/lecturer/assessments/${assessmentId}/checklist`, {
+    method: "POST",
+    body: data,
+    requireAuth: true,
+  });
+}
+
+export async function getPreModerationChecklist(
+  assessmentId: string
+): Promise<PreModerationChecklist> {
+  return apiRequest(`/lecturer/assessments/${assessmentId}/checklist`, {
+    requireAuth: true,
+  });
+}
+
+// ===============================
+// Module Leader Response APIs
+// ===============================
+
+export async function submitModuleLeaderResponse(
+  assessmentId: string,
+  data: ModuleLeaderResponseSubmit
+): Promise<ModuleLeaderResponse> {
+  return apiRequest(`/lecturer/assessments/${assessmentId}/response`, {
+    method: "POST",
+    body: data,
+    requireAuth: true,
+  });
+}
+
+export async function getModuleLeaderResponse(
+  assessmentId: string
+): Promise<ModuleLeaderResponse> {
+  return apiRequest(`/lecturer/assessments/${assessmentId}/response`, {
     requireAuth: true,
   });
 }
