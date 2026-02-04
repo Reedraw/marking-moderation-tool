@@ -43,12 +43,12 @@ class Settings(BaseSettings):
     # -------------------------
     # Database
     # -------------------------
-    DATABASE_URL: str 
+    DATABASE_URL: str = Field(..., description="PostgreSQL database connection URL")
 
     # -------------------------
     # Security
     # -------------------------
-    SECRET_KEY: str
+    SECRET_KEY: str = Field(..., description="Secret key for JWT token signing")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
