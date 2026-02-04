@@ -1,6 +1,7 @@
 from typing import Optional
 import json
 import logging
+import ssl
 
 import asyncpg
 
@@ -46,13 +47,24 @@ async def connect_to_db() -> None:
     if db.pool is not None:
         return
 
+    # Create SSL context for Supabase connections
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+
+    logger.info("Connecting to database...")
+    
     db.pool = await asyncpg.create_pool(
         dsn=settings.DATABASE_URL,
         min_size=1,
         max_size=10,
         command_timeout=60,
+        timeout=30,
+        ssl=ssl_context,
         init=init_connection,
     )
+    
+    logger.info("Database connection pool created successfully")
 
 
 async def close_db_connection() -> None:
