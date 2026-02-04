@@ -13,10 +13,13 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DROP TABLE IF EXISTS audit_log CASCADE;
 DROP TABLE IF EXISTS moderation_item_notes CASCADE;
+DROP TABLE IF EXISTS module_leader_responses CASCADE;
+DROP TABLE IF EXISTS pre_moderation_checklists CASCADE;
 DROP TABLE IF EXISTS moderation_form_responses CASCADE;
 DROP TABLE IF EXISTS moderation_cases CASCADE;
 DROP TABLE IF EXISTS sample_items CASCADE;
 DROP TABLE IF EXISTS sample_sets CASCADE;
+DROP TABLE IF EXISTS marks_revision_history CASCADE;
 DROP TABLE IF EXISTS marks CASCADE;
 DROP TABLE IF EXISTS assessments CASCADE;
 DROP TABLE IF EXISTS module_run_staff CASCADE;
@@ -122,10 +125,28 @@ CREATE TABLE IF NOT EXISTS marks (
   uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
   mark NUMERIC(5,2) NOT NULL CHECK (mark BETWEEN 0 AND 100),
   feedback TEXT,
+  is_revised BOOLEAN DEFAULT FALSE,            -- Track if this mark was revised after moderation
+  revision_reason TEXT,                        -- Why was this mark changed
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (assessment_id, student_id)
 );
+
+-- Track revision history for marks
+CREATE TABLE IF NOT EXISTS marks_revision_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mark_id UUID NOT NULL REFERENCES marks(id) ON DELETE CASCADE,
+  assessment_id UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL,
+  original_mark NUMERIC(5,2) NOT NULL,
+  revised_mark NUMERIC(5,2) NOT NULL,
+  revision_reason TEXT,
+  revised_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  revised_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_marks_revision_history_mark ON marks_revision_history(mark_id);
+CREATE INDEX idx_marks_revision_history_assessment ON marks_revision_history(assessment_id);
 
 -- =========================
 -- SAMPLE SETS + ITEMS

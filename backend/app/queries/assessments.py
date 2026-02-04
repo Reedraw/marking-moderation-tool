@@ -99,14 +99,20 @@ async def get_lecturer_assessments(db: asyncpg.Pool, lecturer_id: UUID) -> list[
         SELECT a.id, a.module_code, a.module_name, a.title, a.cohort,
                a.due_date, a.weighting, a.status, a.created_by, a.created_at, a.updated_at,
                COALESCE(COUNT(DISTINCT m.id), 0) as marks_uploaded_count,
-               s.size as sample_size,
-               s.method as sample_method,
-               s.percent as sample_percent
+               latest_sample.size as sample_size,
+               latest_sample.method as sample_method,
+               latest_sample.percent as sample_percent
         FROM assessments a
         LEFT JOIN marks m ON a.id = m.assessment_id
-        LEFT JOIN sample_sets s ON a.id = s.assessment_id
+        LEFT JOIN LATERAL (
+            SELECT size, method, percent
+            FROM sample_sets
+            WHERE assessment_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) latest_sample ON true
         WHERE a.created_by = $1
-        GROUP BY a.id, s.size, s.method, s.percent
+        GROUP BY a.id, latest_sample.size, latest_sample.method, latest_sample.percent
         ORDER BY a.created_at DESC
         """,
         lecturer_id,
@@ -121,17 +127,23 @@ async def get_moderator_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
                a.due_date, a.weighting, a.status, a.created_by, a.created_at, a.updated_at,
                u.full_name as lecturer_name,
                COALESCE(COUNT(DISTINCT m.id), 0) as marks_uploaded_count,
-               s.size as sample_size,
-               s.method as sample_method,
-               s.percent as sample_percent,
+               latest_sample.size as sample_size,
+               latest_sample.method as sample_method,
+               latest_sample.percent as sample_percent,
                mc.submitted_at
         FROM assessments a
         JOIN users u ON a.created_by = u.id
         LEFT JOIN marks m ON a.id = m.assessment_id
-        LEFT JOIN sample_sets s ON a.id = s.assessment_id
+        LEFT JOIN LATERAL (
+            SELECT size, method, percent
+            FROM sample_sets
+            WHERE assessment_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) latest_sample ON true
         LEFT JOIN moderation_cases mc ON a.id = mc.assessment_id
         WHERE a.status IN ('SUBMITTED_FOR_MODERATION', 'IN_MODERATION', 'ESCALATED')
-        GROUP BY a.id, u.full_name, s.size, s.method, s.percent, mc.submitted_at
+        GROUP BY a.id, u.full_name, latest_sample.size, latest_sample.method, latest_sample.percent, mc.submitted_at
         ORDER BY mc.submitted_at DESC NULLS LAST, a.created_at DESC
         """,
     )
@@ -146,18 +158,24 @@ async def get_third_marker_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
                u1.full_name as lecturer_name,
                u2.full_name as moderator_name,
                COALESCE(COUNT(DISTINCT m.id), 0) as marks_uploaded_count,
-               s.size as sample_size,
-               s.method as sample_method,
-               s.percent as sample_percent,
+               latest_sample.size as sample_size,
+               latest_sample.method as sample_method,
+               latest_sample.percent as sample_percent,
                mc.escalated_at
         FROM assessments a
         JOIN moderation_cases mc ON a.id = mc.assessment_id
         JOIN users u1 ON a.created_by = u1.id
         LEFT JOIN users u2 ON mc.moderator_id = u2.id
         LEFT JOIN marks m ON a.id = m.assessment_id
-        LEFT JOIN sample_sets s ON a.id = s.assessment_id
+        LEFT JOIN LATERAL (
+            SELECT size, method, percent
+            FROM sample_sets
+            WHERE assessment_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) latest_sample ON true
         WHERE a.status = 'ESCALATED'
-        GROUP BY a.id, u1.full_name, u2.full_name, s.size, s.method, s.percent, mc.escalated_at
+        GROUP BY a.id, u1.full_name, u2.full_name, latest_sample.size, latest_sample.method, latest_sample.percent, mc.escalated_at
         ORDER BY mc.escalated_at DESC
         """,
     )
@@ -170,14 +188,17 @@ async def upload_marks(
     assessment_id: UUID,
     marks: list[dict[str, Any]],
     uploaded_by: UUID,
+    is_revision: bool = False,
 ) -> dict[str, Any]:
     processed = 0
     errors = []
+    revisions_tracked = 0
 
     for mark_data in marks:
         student_id = mark_data.get("student_id")
         mark = mark_data.get("mark")
         marker_id = mark_data.get("marker_id")
+        revision_reason = mark_data.get("revision_reason") if is_revision else None
 
         if not student_id or mark is None:
             errors.append(f"Missing student_id or mark for record")
@@ -188,24 +209,65 @@ async def upload_marks(
             continue
 
         try:
-            await db.execute(
+            # If this is a revision, get the old mark first
+            old_mark = None
+            mark_id = None
+            if is_revision:
+                existing_mark = await db.fetchrow(
+                    "SELECT id, mark FROM marks WHERE assessment_id = $1 AND student_id = $2",
+                    assessment_id,
+                    student_id,
+                )
+                if existing_mark:
+                    old_mark = existing_mark["mark"]
+                    mark_id = existing_mark["id"]
+
+            # Insert or update the mark
+            result = await db.fetchrow(
                 """
-                INSERT INTO marks (assessment_id, student_id, mark, marker_id, uploaded_by)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO marks (assessment_id, student_id, mark, marker_id, uploaded_by, is_revised, revision_reason)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (assessment_id, student_id) 
-                DO UPDATE SET mark = $3, marker_id = $4, uploaded_by = $5, updated_at = NOW()
+                DO UPDATE SET mark = $3, marker_id = $4, uploaded_by = $5, 
+                              is_revised = $6, revision_reason = $7, updated_at = NOW()
+                RETURNING id
                 """,
                 assessment_id,
                 student_id,
                 mark,
                 marker_id,
                 uploaded_by,
+                is_revision,
+                revision_reason,
             )
+            
+            # Track revision history if this was a revision and mark changed
+            if is_revision and old_mark is not None and old_mark != mark:
+                await db.execute(
+                    """
+                    INSERT INTO marks_revision_history 
+                    (mark_id, assessment_id, student_id, original_mark, revised_mark, revision_reason, revised_by)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    """,
+                    mark_id or result["id"],
+                    assessment_id,
+                    student_id,
+                    old_mark,
+                    mark,
+                    revision_reason,
+                    uploaded_by,
+                )
+                revisions_tracked += 1
+            
             processed += 1
         except Exception as e:
             errors.append(f"Error processing {student_id}: {str(e)}")
 
-    return {"processed": processed, "skipped": len(marks) - processed, "errors": errors}
+    result_data = {"processed": processed, "skipped": len(marks) - processed, "errors": errors}
+    if is_revision:
+        result_data["revisions_tracked"] = revisions_tracked
+    
+    return result_data
 
 
 def calculate_required_sample_size(cohort_size: int) -> int:
@@ -419,18 +481,41 @@ async def submit_for_moderation(
     submitted_by: UUID,
 ) -> dict[str, Any]:
     async with db.acquire() as conn:
-        moderation_case = await conn.fetchrow(
-            """
-            INSERT INTO moderation_cases (
-                assessment_id, status, lecturer_comment, created_by, submitted_at
-            )
-            VALUES ($1, 'IN_MODERATION', $2, $3, NOW())
-            RETURNING id, assessment_id, status, lecturer_comment, created_by, submitted_at
-            """,
+        # Check if moderation case already exists (resubmission after changes)
+        existing_case = await conn.fetchrow(
+            "SELECT id FROM moderation_cases WHERE assessment_id = $1",
             assessment_id,
-            comment,
-            submitted_by,
         )
+        
+        if existing_case:
+            # Resubmission - update existing case
+            moderation_case = await conn.fetchrow(
+                """
+                UPDATE moderation_cases 
+                SET status = 'IN_MODERATION', 
+                    lecturer_comment = COALESCE($2, lecturer_comment),
+                    submitted_at = NOW(),
+                    updated_at = NOW()
+                WHERE assessment_id = $1
+                RETURNING id, assessment_id, status, lecturer_comment, created_by, submitted_at
+                """,
+                assessment_id,
+                comment,
+            )
+        else:
+            # First submission - create new case
+            moderation_case = await conn.fetchrow(
+                """
+                INSERT INTO moderation_cases (
+                    assessment_id, status, lecturer_comment, created_by, submitted_at
+                )
+                VALUES ($1, 'IN_MODERATION', $2, $3, NOW())
+                RETURNING id, assessment_id, status, lecturer_comment, created_by, submitted_at
+                """,
+                assessment_id,
+                comment,
+                submitted_by,
+            )
 
         await conn.execute(
             """
@@ -500,10 +585,13 @@ async def make_third_marker_decision(
     comment: Optional[str],
     third_marker_id: UUID,
 ) -> dict[str, Any]:
+    # CONFIRM_MODERATOR = Third marker agrees with moderator's concerns → lecturer must revise
+    # OVERRIDE_MODERATOR = Third marker disagrees, marks are fine → approved
+    # REFER_BACK = Needs more review → back to moderation
     new_status = {
-        "CONFIRM_MODERATOR": "APPROVED",
-        "OVERRIDE_MODERATOR": "APPROVED",
-        "REFER_BACK": "IN_MODERATION",
+        "CONFIRM_MODERATOR": "CHANGES_REQUESTED",  # Lecturer must revise marks
+        "OVERRIDE_MODERATOR": "APPROVED",           # Third marker says marks are OK
+        "REFER_BACK": "IN_MODERATION",              # Back to moderator for more review
     }.get(decision, "ESCALATED")
 
     async with db.acquire() as conn:
@@ -630,7 +718,7 @@ async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
         """
         SELECT
             COUNT(*) as total_assessments,
-            json_object_agg(status, count) as by_status
+            COALESCE(json_object_agg(status, count) FILTER (WHERE status IS NOT NULL), '{}'::json) as by_status
         FROM (
             SELECT status, COUNT(*) as count
             FROM assessments

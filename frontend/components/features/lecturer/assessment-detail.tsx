@@ -213,9 +213,9 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
       case "IN_MODERATION":
         return "Awaiting moderator review";
       case "APPROVED":
-        return "Complete";
+        return "Respond to confirm final marks";
       case "CHANGES_REQUESTED":
-        return "Address feedback";
+        return "Revise marks and resubmit";
       default:
         return "Unknown";
     }
@@ -237,9 +237,11 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
     );
   }
 
-  const canGenerateSample = assessment.status === "MARKS_UPLOADED" || assessment.status === "SAMPLE_GENERATED";
-  const canSubmit = assessment.status === "SAMPLE_GENERATED";
-  const canRespondToModerator = ["IN_MODERATION", "CHANGES_REQUESTED", "APPROVED"].includes(assessment.status);
+  // CHANGES_REQUESTED allows regenerating sample and resubmitting
+  const canGenerateSample = assessment.status === "MARKS_UPLOADED" || assessment.status === "SAMPLE_GENERATED" || assessment.status === "CHANGES_REQUESTED";
+  const canSubmit = assessment.status === "SAMPLE_GENERATED" || assessment.status === "CHANGES_REQUESTED";
+  // Respond to Moderator only after APPROVED (final approval) - not during revision cycle
+  const canRespondToModerator = assessment.status === "APPROVED";
 
   return (
     <div className="space-y-6">
@@ -261,12 +263,22 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
               Respond to Moderator
             </Link>
           )}
-          <Link
-            href={`/lecturer/assessments/${assessmentId}/upload`}
-            className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90"
-          >
-            Upload marks
-          </Link>
+          {(assessment.status === "DRAFT" || assessment.status === "MARKS_UPLOADED" || assessment.status === "SAMPLE_GENERATED") && (
+            <Link
+              href={`/lecturer/assessments/${assessmentId}/upload`}
+              className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90"
+            >
+              Upload marks
+            </Link>
+          )}
+          {assessment.status === "CHANGES_REQUESTED" && (
+            <Link
+              href={`/lecturer/assessments/${assessmentId}/upload`}
+              className="rounded-xl bg-amber-600 px-4 py-2 text-sm text-white hover:opacity-90"
+            >
+              Revise Marks
+            </Link>
+          )}
           <Link
             href="/lecturer/dashboard"
             className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-gray-50"
@@ -523,13 +535,19 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
       {/* Submit for moderation */}
       <Card>
         <div className="p-5">
-          <h2 className="text-lg font-semibold">Submit for moderation</h2>
+          <h2 className="text-lg font-semibold">
+            {assessment.status === "CHANGES_REQUESTED" ? "Resubmit for moderation" : "Submit for moderation"}
+          </h2>
           <p className="mt-1 text-sm text-gray-600">
-            When submitted, the system notifies the assigned moderator and locks workflow changes.
+            {assessment.status === "CHANGES_REQUESTED"
+              ? "After revising marks as requested, resubmit for moderator review."
+              : "When submitted, the system notifies the assigned moderator and locks workflow changes."}
           </p>
 
           <div className="mt-4">
-            <label htmlFor="moderator-comment" className="text-xs text-gray-600">Optional comment to moderator</label>
+            <label htmlFor="moderator-comment" className="text-xs text-gray-600">
+              {assessment.status === "CHANGES_REQUESTED" ? "Explain what was revised" : "Optional comment to moderator"}
+            </label>
             <textarea
               id="moderator-comment"
               value={moderatorComment}
@@ -537,17 +555,21 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
               disabled={!canSubmit || submitting}
               className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
               rows={3}
-              placeholder="E.g., marking rubric notes, special cases, late submissions..."
+              placeholder={assessment.status === "CHANGES_REQUESTED" 
+                ? "Describe what marks were revised and why..."
+                : "E.g., marking rubric notes, special cases, late submissions..."}
             />
           </div>
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               onClick={handleSubmitForModeration}
-              disabled={!canSubmit || !isChecklistComplete || submitting}
-              className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
+              disabled={!canSubmit || (!isChecklistComplete && assessment.status !== "CHANGES_REQUESTED") || submitting}
+              className={`rounded-xl px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50 ${
+                assessment.status === "CHANGES_REQUESTED" ? "bg-amber-600" : "bg-black"
+              }`}
             >
-              {submitting ? "Submitting..." : "Submit for moderation"}
+              {submitting ? "Submitting..." : (assessment.status === "CHANGES_REQUESTED" ? "Resubmit for review" : "Submit for moderation")}
             </button>
             {!canSubmit && (
               <span className="text-sm text-gray-600">
@@ -556,7 +578,7 @@ export function AssessmentDetail({ assessmentId }: AssessmentDetailProps) {
                   : "Already submitted or in progress."}
               </span>
             )}
-            {canSubmit && !isChecklistComplete && (
+            {canSubmit && !isChecklistComplete && assessment.status !== "CHANGES_REQUESTED" && (
               <span className="text-sm text-amber-600">
                 Complete the marking process checklist first.
               </span>

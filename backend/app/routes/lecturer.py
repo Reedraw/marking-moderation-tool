@@ -143,28 +143,39 @@ async def upload_assessment_marks(
             detail="Not authorized to modify this assessment",
         )
 
+    # Determine if this is a revision (when status = CHANGES_REQUESTED)
+    is_revision = assessment["status"] == "CHANGES_REQUESTED"
+    
     result = await upload_marks(
         db,
         assessment_id=assessment_id,
         marks=[m.model_dump() for m in data.marks],
         uploaded_by=current_user["id"],
+        is_revision=is_revision,
     )
 
     if result["processed"] > 0:
-        await db.execute(
-            """
-            UPDATE assessments SET status = 'MARKS_UPLOADED', updated_at = NOW()
-            WHERE id = $1
-            """,
-            assessment_id,
-        )
+        # If it was a revision, keep status as CHANGES_REQUESTED
+        # Otherwise set to MARKS_UPLOADED
+        if not is_revision:
+            await db.execute(
+                """
+                UPDATE assessments SET status = 'MARKS_UPLOADED', updated_at = NOW()
+                WHERE id = $1
+                """,
+                assessment_id,
+            )
 
+        action_text = f"Revised marks ({result['processed']} records)" if is_revision else f"Uploaded marks ({result['processed']} records)"
+        if is_revision and result.get("revisions_tracked", 0) > 0:
+            action_text += f" - {result['revisions_tracked']} changed"
+            
         await log_audit_event(
             db,
             actor_id=current_user["id"],
             actor_name=current_user["full_name"] or current_user["username"],
             actor_role=current_user["role"],
-            action=f"Uploaded marks ({result['processed']} records)",
+            action=action_text,
             assessment_id=assessment_id,
         )
 
@@ -233,11 +244,14 @@ async def submit_assessment_for_moderation(
             detail="Not authorized to modify this assessment",
         )
 
-    if assessment["status"] != "SAMPLE_GENERATED":
+    if assessment["status"] not in ("SAMPLE_GENERATED", "CHANGES_REQUESTED"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assessment must have a generated sample before submission",
         )
+
+    # Determine if this is a resubmission after changes
+    is_resubmission = assessment["status"] == "CHANGES_REQUESTED"
 
     await submit_for_moderation(
         db,
@@ -246,12 +260,13 @@ async def submit_assessment_for_moderation(
         submitted_by=current_user["id"],
     )
 
+    action_text = "Resubmitted for moderation after revisions" if is_resubmission else "Submitted for moderation"
     await log_audit_event(
         db,
         actor_id=current_user["id"],
         actor_name=current_user["full_name"] or current_user["username"],
         actor_role=current_user["role"],
-        action="Submitted for moderation",
+        action=action_text,
         assessment_id=assessment_id,
     )
 

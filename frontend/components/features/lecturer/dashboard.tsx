@@ -181,16 +181,18 @@ export function LecturerDashboard() {
                             Open
                           </Link>
 
-                          {(a.status === "DRAFT" || a.status === "MARKS_UPLOADED" || a.status === "SAMPLE_GENERATED") && (
+                          {(a.status === "DRAFT" || a.status === "MARKS_UPLOADED" || a.status === "SAMPLE_GENERATED" || a.status === "CHANGES_REQUESTED") && (
                             <Link
                               href={`/lecturer/assessments/${a.id}/upload`}
-                              className="rounded-xl bg-black px-3 py-2 text-sm text-white hover:opacity-90"
+                              className={`rounded-xl px-3 py-2 text-sm text-white hover:opacity-90 ${
+                                a.status === "CHANGES_REQUESTED" ? "bg-amber-600" : "bg-black"
+                              }`}
                             >
-                              Upload marks
+                              {a.status === "CHANGES_REQUESTED" ? "Revise Marks" : "Upload marks"}
                             </Link>
                           )}
 
-                          {(a.status === "APPROVED" || a.status === "CHANGES_REQUESTED" || a.status === "ESCALATED") && (
+                          {a.status === "APPROVED" && (
                             <Link
                               href={`/lecturer/assessments/${a.id}/response`}
                               className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white hover:opacity-90"
