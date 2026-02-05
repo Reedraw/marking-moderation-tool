@@ -81,8 +81,12 @@ marking-moderation-tool/
 │   └── requirements.txt           # Python dependencies
 │
 ├── database_setup.sql             # PostgreSQL schema definition
+├── register_users.py              # Script to create test users
 ├── .env.example                   # Environment variables template
-└── README.md                      # This file
+├── README.md                      # This file
+└── more_context/                  # Academic regulations and forms
+    ├── academic-regulations-section-12-marking-moderation-and-external-scrutiny.txt
+    └── Moderation Form_Marking Assessment 2024_25.txt
 ```
 
 ## 🚀 Getting Started
@@ -452,6 +456,33 @@ uvicorn app.main:app --reload        # Development server with hot reload on htt
 uvicorn app.main:app --reload --log-level debug  # Verbose logging for debugging
 ```
 
+### Testing
+
+The project includes comprehensive test suites in `backend/tests/`:
+
+```bash
+cd backend
+
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_e2e_auth.py
+
+# Run with verbose output
+pytest -v
+
+# Run specific test function
+pytest tests/test_moderation_cases.py -k "test_specific_function"
+```
+
+**Test Files:**
+- `test_database_connection.py` - Database connectivity and health checks
+- `test_e2e_auth.py` - End-to-end authentication workflows
+- `test_moderation_cases.py` - Complete moderation workflow scenarios
+- `test_api.py` - API endpoint testing
+- `test_supabase_direct.py` - Direct database operations
+
 ### Testing the Complete Workflow
 
 1. **Register Test Users** (use `register_users.py` script in backend folder):
@@ -742,12 +773,14 @@ For questions or issues:
 - ✅ Latest sample only in queues (LATERAL joins prevent duplicates)
 - ✅ Proper status transitions for all workflow paths
 - ✅ Test user registration script
+- ✅ **Backend pytest test suite** (database, auth, moderation workflows)
 
 ### 🚧 In Progress
-- 🚧 Automated testing suite (Jest for frontend, pytest for backend)
-- 🚧 CSV mark upload validation and error handling
+- 🚧 Frontend testing suite (Jest/React Testing Library)
+- 🚧 CSV mark upload validation and error handling enhancement
 - 🚧 Email notifications for workflow transitions
 - 🚧 Bulk operations for administrators
+- 🚧 Enhanced error messaging and user feedback
 
 ### 📋 Planned Features
 - 📋 Advanced analytics and reporting
@@ -789,9 +822,16 @@ For questions or issues:
 
 ---
 
-**Current Status**: All core workflows fully functional. Backend API complete. Frontend connected with real API integration. Mark revision, moderation, and third marker workflows tested end-to-end. Ready for automated testing implementation and deployment preparation.
+**Current Status**: All core workflows fully functional. Backend API complete with comprehensive pytest test suite. Frontend connected with real API integration. Mark revision, moderation, and third marker workflows tested end-to-end. Backend tests cover database connectivity, authentication, and complete moderation workflows.
 
-**Testing**: Use `register_users.py` to create test accounts. Test complete workflow from mark upload → moderation → revision → third marker → module leader response.
+**Testing**: 
+- Backend: Run `pytest` in `backend/` directory for automated tests
+- Manual Testing: Use `register_users.py` to create test accounts
+- E2E Testing: Test complete workflow from mark upload → moderation → revision → third marker → module leader response
 
 **Deployment**: Ready for staging environment. Ensure all environment variables configured (DATABASE_URL, SECRET_KEY, CORS_ORIGINS).
+
+**Documentation for Developers**:
+- [database_setup.sql](database_setup.sql) - Complete PostgreSQL schema with audit tables
+- `/more_context/` - Academic regulations and moderation form requirements
 
