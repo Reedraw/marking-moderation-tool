@@ -831,7 +831,4 @@ For questions or issues:
 
 **Deployment**: Ready for staging environment. Ensure all environment variables configured (DATABASE_URL, SECRET_KEY, CORS_ORIGINS).
 
-**Documentation for Developers**:
-- [database_setup.sql](database_setup.sql) - Complete PostgreSQL schema with audit tables
-- `/more_context/` - Academic regulations and moderation form requirements
 
