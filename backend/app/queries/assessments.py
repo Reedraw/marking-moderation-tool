@@ -1,55 +1,72 @@
+# Enable postponed evaluation of annotations (allows forward references in type hints)
 from __future__ import annotations
 
+# Import type hints
 from typing import Any, Optional
+# Import UUID type for primary/foreign key parameters
 from uuid import UUID
 
+# Import asyncpg for typed database connection pool
 import asyncpg
 
+
+# ===============================
+# Audit Logging
+# ===============================
 
 async def log_audit_event(
     db: asyncpg.Pool,
     *,
-    actor_id: UUID,
-    actor_name: str,
-    actor_role: str,
-    action: str,
-    assessment_id: Optional[UUID] = None,
+    actor_id: UUID,          # Who performed the action
+    actor_name: str,         # Display name for the audit log
+    actor_role: str,         # Role of the user (for filtering)
+    action: str,             # Description of what happened (e.g. "uploaded marks")
+    assessment_id: Optional[UUID] = None,  # Related assessment (if applicable)
 ) -> dict[str, Any]:
+    """Insert an audit log entry. Every significant action in the system
+    is logged here for compliance and traceability (academic regulation requirement)."""
     row = await db.fetchrow(
         """
         INSERT INTO audit_log (actor_id, actor_name, actor_role, action, assessment_id)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id, timestamp, actor_id, actor_name, actor_role, action, assessment_id
         """,
-        actor_id,
-        actor_name,
-        actor_role,
-        action,
-        assessment_id,
+        actor_id,        # $1
+        actor_name,      # $2
+        actor_role,      # $3
+        action,          # $4
+        assessment_id,   # $5
     )
     return dict(row)
 
 
+# ===============================
+# Assessment CRUD Operations
+# ===============================
+
 async def create_assessment(
     db: asyncpg.Pool,
     *,
-    module_code: str,
-    module_name: str,
-    title: str,
-    cohort: str,
-    due_date: str,
-    weighting: int,
-    module_run_id: UUID,
-    credit_size: int,
-    created_by: UUID,
+    module_code: str,       # e.g. "CS2001"
+    module_name: str,       # e.g. "Software Engineering"
+    title: str,             # e.g. "Coursework 1"
+    cohort: str,            # e.g. "2025/26"
+    due_date: str,          # YYYY-MM-DD format
+    weighting: int,         # Percentage of module mark (0-100)
+    module_run_id: UUID,    # Links to the module_runs table
+    credit_size: int,       # Module credits (15, 20, 30+)
+    created_by: UUID,       # Lecturer who created this assessment
 ) -> dict[str, Any]:
+    """Create a new assessment record in DRAFT status.
+    Converts due_date string to a Python date object for PostgreSQL."""
     from datetime import date
-    # Convert due_date string to date object if it's a string
+    # Convert due_date string to a proper date object if needed
     if isinstance(due_date, str):
-        due_date_obj = date.fromisoformat(due_date)
+        due_date_obj = date.fromisoformat(due_date)  # Parse "2025-06-15" format
     else:
-        due_date_obj = due_date
+        due_date_obj = due_date  # Already a date object
         
+    # Insert the assessment with initial DRAFT status
     row = await db.fetchrow(
         """
         INSERT INTO assessments (
@@ -60,20 +77,22 @@ async def create_assessment(
         RETURNING id, module_code, module_name, title, cohort, due_date, weighting,
                  module_run_id, credit_size, created_by, status, created_at, updated_at
         """,
-        module_code,
-        module_name,
-        title,
-        cohort,
-        due_date_obj,
-        weighting,
-        module_run_id,
-        credit_size,
-        created_by,
+        module_code,     # $1
+        module_name,     # $2
+        title,           # $3
+        cohort,          # $4
+        due_date_obj,    # $5 - converted to date
+        weighting,       # $6
+        module_run_id,   # $7
+        credit_size,     # $8
+        created_by,      # $9 - lecturer's user ID
     )
     return dict(row)
 
 
 async def get_assessment_by_id(db: asyncpg.Pool, assessment_id: UUID) -> Optional[dict[str, Any]]:
+    """Fetch a single assessment with its mark count and sample info.
+    Uses LEFT JOINs to include marks count and latest sample set data."""
     row = await db.fetchrow(
         """
         SELECT a.id, a.module_code, a.module_name, a.title, a.cohort,
@@ -94,6 +113,9 @@ async def get_assessment_by_id(db: asyncpg.Pool, assessment_id: UUID) -> Optiona
 
 
 async def get_lecturer_assessments(db: asyncpg.Pool, lecturer_id: UUID) -> list[dict[str, Any]]:
+    """Fetch all assessments created by a specific lecturer.
+    Includes mark counts and latest sample info via LATERAL subquery.
+    LATERAL allows us to get just the most recent sample set for each assessment."""
     rows = await db.fetch(
         """
         SELECT a.id, a.module_code, a.module_name, a.title, a.cohort,
@@ -121,6 +143,9 @@ async def get_lecturer_assessments(db: asyncpg.Pool, lecturer_id: UUID) -> list[
 
 
 async def get_moderator_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
+    """Fetch all assessments that need moderator attention.
+    Includes assessments in SUBMITTED_FOR_MODERATION, IN_MODERATION, or ESCALATED status.
+    Joins with users table to get the lecturer's name for display."""
     rows = await db.fetch(
         """
         SELECT a.id, a.module_code, a.module_name, a.title, a.cohort,
@@ -151,6 +176,9 @@ async def get_moderator_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
 
 
 async def get_third_marker_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
+    """Fetch all assessments escalated to third marker review.
+    Includes both lecturer and moderator names, plus escalation timestamp.
+    Only returns assessments in ESCALATED status."""
     rows = await db.fetch(
         """
         SELECT a.id, a.module_code, a.module_name, a.title, a.cohort,
@@ -182,34 +210,45 @@ async def get_third_marker_queue(db: asyncpg.Pool) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+# ===============================
+# Mark Upload & Revision Tracking
+# ===============================
+
 async def upload_marks(
     db: asyncpg.Pool,
     *,
-    assessment_id: UUID,
-    marks: list[dict[str, Any]],
-    uploaded_by: UUID,
-    is_revision: bool = False,
+    assessment_id: UUID,           # Which assessment to upload marks for
+    marks: list[dict[str, Any]],   # List of {student_id, mark, marker_id} dicts
+    uploaded_by: UUID,             # Who is uploading the marks
+    is_revision: bool = False,     # Whether this is a mark revision (after changes requested)
 ) -> dict[str, Any]:
-    processed = 0
-    errors = []
-    revisions_tracked = 0
+    """Upload student marks for an assessment. Handles both initial uploads
+    and revisions. Uses UPSERT (INSERT ... ON CONFLICT) to handle duplicates.
+    Tracks revision history when marks change."""
+    processed = 0          # Counter for successfully saved marks
+    errors = []            # Collect error messages for failed entries
+    revisions_tracked = 0  # Counter for marks that changed during revision
 
+    # Process each mark individually
     for mark_data in marks:
-        student_id = mark_data.get("student_id")
-        mark = mark_data.get("mark")
-        marker_id = mark_data.get("marker_id")
+        student_id = mark_data.get("student_id")  # e.g. "w1234567"
+        mark = mark_data.get("mark")               # e.g. 72.5
+        marker_id = mark_data.get("marker_id")     # Optional: who marked it
+        # Only include revision reason if this is a revision upload
         revision_reason = mark_data.get("revision_reason") if is_revision else None
 
+        # Validate required fields
         if not student_id or mark is None:
             errors.append(f"Missing student_id or mark for record")
             continue
 
+        # Validate mark is in valid range (0-100)
         if not (0 <= mark <= 100):
             errors.append(f"Mark out of range for {student_id}")
             continue
 
         try:
-            # If this is a revision, get the old mark first
+            # If this is a revision, get the old mark first for history tracking
             old_mark = None
             mark_id = None
             if is_revision:
@@ -222,7 +261,8 @@ async def upload_marks(
                     old_mark = existing_mark["mark"]
                     mark_id = existing_mark["id"]
 
-            # Insert or update the mark
+            # Insert or update the mark using UPSERT (ON CONFLICT ... DO UPDATE)
+            # This handles both new marks and updates to existing marks
             result = await db.fetchrow(
                 """
                 INSERT INTO marks (assessment_id, student_id, mark, marker_id, uploaded_by, is_revised, revision_reason)
@@ -232,16 +272,16 @@ async def upload_marks(
                               is_revised = $6, revision_reason = $7, updated_at = NOW()
                 RETURNING id
                 """,
-                assessment_id,
-                student_id,
-                mark,
-                marker_id,
-                uploaded_by,
-                is_revision,
-                revision_reason,
+                assessment_id,    # $1
+                student_id,       # $2
+                mark,             # $3
+                marker_id,        # $4
+                uploaded_by,      # $5
+                is_revision,      # $6
+                revision_reason,  # $7
             )
             
-            # Track revision history if this was a revision and mark changed
+            # Track revision history if the mark actually changed
             if is_revision and old_mark is not None and old_mark != mark:
                 await db.execute(
                     """
@@ -249,11 +289,11 @@ async def upload_marks(
                     (mark_id, assessment_id, student_id, original_mark, revised_mark, revision_reason, revised_by)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
                     """,
-                    mark_id or result["id"],
+                    mark_id or result["id"],  # Use existing mark ID or newly created one
                     assessment_id,
                     student_id,
-                    old_mark,
-                    mark,
+                    old_mark,                 # The old mark value
+                    mark,                     # The new mark value
                     revision_reason,
                     uploaded_by,
                 )
@@ -263,6 +303,7 @@ async def upload_marks(
         except Exception as e:
             errors.append(f"Error processing {student_id}: {str(e)}")
 
+    # Build the response dict
     result_data = {"processed": processed, "skipped": len(marks) - processed, "errors": errors}
     if is_revision:
         result_data["revisions_tracked"] = revisions_tracked
@@ -270,42 +311,61 @@ async def upload_marks(
     return result_data
 
 
+# ===============================
+# Sample Size Calculation (Academic Regulations Section 12.18)
+# ===============================
+
 def calculate_required_sample_size(cohort_size: int) -> int:
     """
     Calculate minimum sample size based on academic regulations (Section 12.18).
+    This is a key business rule derived from the university's marking regulations.
     
+    Rules:
     - < 100 students: 20% or 10 students' assessments (whichever is greater)
     - 100 – 300 students: 15%
     - > 300 students: 10%
     """
     if cohort_size < 100:
+        # For small cohorts: take 20% but ensure at least 10 (or all if fewer than 10)
         return max(int(cohort_size * 0.20), min(10, cohort_size))
     elif cohort_size <= 300:
+        # Medium cohorts: 15%
         return int(cohort_size * 0.15)
     else:
+        # Large cohorts: 10%
         return int(cohort_size * 0.10)
 
+
+# ===============================
+# Sample Generation (Academic Regulations Section 12.19-12.20)
+# ===============================
 
 async def generate_sample(
     db: asyncpg.Pool,
     *,
-    assessment_id: UUID,
-    method: str,
-    percent: float,
-    generated_by: UUID,
+    assessment_id: UUID,       # Which assessment to sample from
+    method: str,               # RANDOM, STRATIFIED, or RISK_BASED
+    percent: float,            # Requested sample percentage
+    generated_by: UUID,        # Who triggered the generation
 ) -> dict[str, Any]:
     """
     Generate moderation sample according to academic regulations (Section 12.19-12.20).
     
-    Sample must include:
+    The sample MUST include (as mandated by regulations):
     - Representative coverage of all markers
     - Full range of marks achieved by cohort
     - ALL assessments within two marks below pass mark (38-39%)
     - Highest and lowest marks
     - Boundary cases: 38-42%, 58-62%, 68-72%
+    
+    Three sampling methods are available:
+    - RANDOM: Mandatory inclusions + random fill to meet size requirement
+    - STRATIFIED: Mandatory inclusions + proportional sampling across mark bands
+    - RISK_BASED: Mandatory inclusions + focus on fail/outlier marks
     """
     import random
     
+    # Fetch all marks for this assessment, sorted by mark descending
     marks = await db.fetch(
         """
         SELECT id, student_id, mark, marker_id
@@ -316,41 +376,47 @@ async def generate_sample(
         assessment_id,
     )
 
+    # Return empty sample if no marks exist
     if not marks:
         return {"sample_size": 0, "method": method, "percent": percent, "sample_items": []}
 
     total_marks = len(marks)
     
-    # Calculate minimum required sample size per regulations
+    # Calculate the minimum sample size required by regulations
     regulation_min_size = calculate_required_sample_size(total_marks)
+    # Calculate the user's requested sample size based on percentage
     user_requested_size = max(int(total_marks * (percent / 100)), 1)
+    # Use whichever is larger - regulations take priority
     required_size = max(regulation_min_size, user_requested_size)
 
+    # Set to track which mark indices are selected (prevents duplicates)
     selected_indices = set()
     
     # MANDATORY: Include ALL marks within two below pass mark (38-39%) - Section 12.20
+    # This is a strict regulation requirement - these MUST be in the sample
     within_two_below_pass = [idx for idx, m in enumerate(marks) if 38 <= m["mark"] < 40]
     selected_indices.update(within_two_below_pass)
     
     # MANDATORY: Include highest and lowest marks
     if total_marks > 0:
-        selected_indices.add(0)  # Highest (already sorted DESC)
-        selected_indices.add(total_marks - 1)  # Lowest
+        selected_indices.add(0)                # Highest mark (list is sorted DESC)
+        selected_indices.add(total_marks - 1)  # Lowest mark
     
-    # Include boundary cases (Section 12.19)
-    # Pass/fail boundary: 38-42%
+    # Include boundary cases as required by Section 12.19
+    # Pass/fail boundary: 38-42% (critical - determines if student passes)
     pass_fail_boundary = [idx for idx, m in enumerate(marks) if 38 <= m["mark"] <= 42]
     selected_indices.update(pass_fail_boundary)
     
-    # 2:2/2:1 boundary: 58-62%
+    # 2:2/2:1 boundary: 58-62% (classification boundary)
     lower_boundary = [idx for idx, m in enumerate(marks) if 58 <= m["mark"] <= 62]
     selected_indices.update(lower_boundary)
     
-    # 2:1/First boundary: 68-72%
+    # 2:1/First boundary: 68-72% (classification boundary)
     upper_boundary = [idx for idx, m in enumerate(marks) if 68 <= m["mark"] <= 72]
     selected_indices.update(upper_boundary)
     
     # Ensure representative coverage of all markers (Section 12.19)
+    # Group marks by marker_id
     markers = {}
     for idx, m in enumerate(marks):
         marker = m["marker_id"] or "unknown"
@@ -358,13 +424,14 @@ async def generate_sample(
             markers[marker] = []
         markers[marker].append(idx)
     
-    # Include at least one from each marker
+    # Include at least one mark from each marker
     for marker, indices in markers.items():
         if not any(i in selected_indices for i in indices):
             selected_indices.add(random.choice(indices))
 
+    # Now fill remaining slots based on the chosen sampling method
     if method == "RANDOM":
-        # Fill remaining with random selection
+        # Simple random selection to fill remaining slots
         remaining = required_size - len(selected_indices)
         if remaining > 0:
             available = [idx for idx in range(total_marks) if idx not in selected_indices]
@@ -372,37 +439,46 @@ async def generate_sample(
                 selected_indices.update(random.sample(available, min(remaining, len(available))))
 
     elif method == "STRATIFIED":
-        # Stratified sampling across mark bands
+        # Stratified sampling: proportional representation across mark bands
+        # Ensures each grade band is represented in the sample
         bands = [(90, 100), (70, 89), (60, 69), (50, 59), (40, 49), (0, 39)]
         remaining = required_size - len(selected_indices)
         
         for low, high in bands:
+            # Get unselected marks in this band
             band_marks = [idx for idx, m in enumerate(marks) if low <= m["mark"] <= high and idx not in selected_indices]
             if band_marks and remaining > 0:
+                # Allocate equal slots to each band
                 band_size = max(1, remaining // len(bands))
                 to_add = random.sample(band_marks, min(band_size, len(band_marks)))
                 selected_indices.update(to_add)
                 remaining -= len(to_add)
 
-    else:  # RISK_BASED (default)
-        # Focus on risk areas: fails, near-boundaries, and outliers
-        fail_marks = [idx for idx, m in enumerate(marks) if m["mark"] < 40 and idx not in selected_indices]
-        selected_indices.update(fail_marks[:5])  # Include up to 5 fails
+    else:  # RISK_BASED (default - recommended method)
+        # Focus on risk areas: failing marks, near-boundaries, and outliers
+        # This is the most thorough method for catching marking issues
         
-        # High marks that might be outliers (90+)
+        # Include up to 5 additional failing marks
+        fail_marks = [idx for idx, m in enumerate(marks) if m["mark"] < 40 and idx not in selected_indices]
+        selected_indices.update(fail_marks[:5])
+        
+        # Include up to 3 high outliers (marks 90+) which may indicate lenient marking
         high_outliers = [idx for idx, m in enumerate(marks) if m["mark"] >= 90 and idx not in selected_indices]
         selected_indices.update(high_outliers[:3])
         
-        # Fill remaining
+        # Fill remaining slots randomly
         remaining = required_size - len(selected_indices)
         if remaining > 0:
             available = [idx for idx in range(total_marks) if idx not in selected_indices]
             if available:
                 selected_indices.update(random.sample(available, min(remaining, len(available))))
 
+    # Get the actual mark records for selected indices
     sample_marks = [marks[i] for i in selected_indices]
 
+    # Save the sample set and items to the database in a single transaction
     async with db.acquire() as conn:
+        # Create the sample_set record (metadata about this sample)
         sample_set = await conn.fetchrow(
             """
             INSERT INTO sample_sets (assessment_id, method, percent, size, cohort_size, generated_by)
@@ -419,26 +495,28 @@ async def generate_sample(
 
         sample_set_id = sample_set["id"]
 
+        # Insert each sample item with the reason it was included
         sample_items = []
         for mark_data in sample_marks:
-            # Determine reason for inclusion
+            # Determine why this mark was included in the sample
             mark_val = mark_data["mark"]
             reasons = []
             if 38 <= mark_val < 40:
-                reasons.append("within_two_below_pass")
+                reasons.append("within_two_below_pass")     # Regulation 12.20
             if 38 <= mark_val <= 42:
-                reasons.append("pass_fail_boundary")
+                reasons.append("pass_fail_boundary")        # Pass/fail boundary
             if 58 <= mark_val <= 62:
-                reasons.append("2:2_2:1_boundary")
+                reasons.append("2:2_2:1_boundary")          # Classification boundary
             if 68 <= mark_val <= 72:
-                reasons.append("2:1_first_boundary")
+                reasons.append("2:1_first_boundary")        # Classification boundary
             if mark_val >= 90:
-                reasons.append("high_outlier")
+                reasons.append("high_outlier")              # Potential outlier
             if mark_val < 40:
-                reasons.append("fail")
+                reasons.append("fail")                      # Failing mark
             if not reasons:
-                reasons.append("random_sample")
+                reasons.append("random_sample")             # Random/stratified fill
             
+            # Insert the sample item record
             item = await conn.fetchrow(
                 """
                 INSERT INTO sample_items (sample_set_id, mark_id, student_id, original_mark, marker_id, reason)
@@ -454,6 +532,7 @@ async def generate_sample(
             )
             sample_items.append(dict(item))
 
+        # Update the assessment status to SAMPLE_GENERATED
         await conn.execute(
             """
             UPDATE assessments SET status = 'SAMPLE_GENERATED', updated_at = NOW()
@@ -462,6 +541,7 @@ async def generate_sample(
             assessment_id,
         )
 
+    # Return the complete sample generation results
     return {
         "sample_size": len(sample_marks),
         "method": method,
@@ -472,23 +552,29 @@ async def generate_sample(
     }
 
 
+# ===============================
+# Moderation Workflow Operations
+# ===============================
 
 async def submit_for_moderation(
     db: asyncpg.Pool,
     *,
-    assessment_id: UUID,
-    comment: Optional[str],
-    submitted_by: UUID,
+    assessment_id: UUID,       # Which assessment to submit
+    comment: Optional[str],    # Optional note from lecturer to moderator
+    submitted_by: UUID,        # Lecturer's user ID
 ) -> dict[str, Any]:
+    """Submit an assessment for moderation review.
+    Handles both first-time submissions and resubmissions (after changes requested).
+    Creates or updates the moderation_cases record."""
     async with db.acquire() as conn:
-        # Check if moderation case already exists (resubmission after changes)
+        # Check if a moderation case already exists (this would be a resubmission)
         existing_case = await conn.fetchrow(
             "SELECT id FROM moderation_cases WHERE assessment_id = $1",
             assessment_id,
         )
         
         if existing_case:
-            # Resubmission - update existing case
+            # Resubmission after changes were requested - update existing case
             moderation_case = await conn.fetchrow(
                 """
                 UPDATE moderation_cases 
@@ -503,7 +589,7 @@ async def submit_for_moderation(
                 comment,
             )
         else:
-            # First submission - create new case
+            # First submission - create a new moderation case
             moderation_case = await conn.fetchrow(
                 """
                 INSERT INTO moderation_cases (
@@ -517,6 +603,7 @@ async def submit_for_moderation(
                 submitted_by,
             )
 
+        # Update the assessment's status to IN_MODERATION
         await conn.execute(
             """
             UPDATE assessments SET status = 'IN_MODERATION', updated_at = NOW()
@@ -531,18 +618,23 @@ async def submit_for_moderation(
 async def make_moderation_decision(
     db: asyncpg.Pool,
     *,
-    moderation_case_id: UUID,
-    decision: str,
-    comment: Optional[str],
-    moderator_id: UUID,
+    moderation_case_id: UUID,     # Which moderation case
+    decision: str,                # APPROVED, CHANGES_REQUESTED, or ESCALATED
+    comment: Optional[str],       # Moderator's justification
+    moderator_id: UUID,           # Who is making the decision
 ) -> dict[str, Any]:
+    """Record a moderator's decision on a moderation case.
+    Maps the decision to the corresponding assessment status.
+    If ESCALATED, also records the escalation timestamp."""
+    # Map moderator decision to the new assessment status
     new_status = {
-        "APPROVED": "APPROVED",
-        "CHANGES_REQUESTED": "CHANGES_REQUESTED",
-        "ESCALATED": "ESCALATED",
+        "APPROVED": "APPROVED",                    # Marks confirmed as appropriate
+        "CHANGES_REQUESTED": "CHANGES_REQUESTED",  # Lecturer needs to revise marks
+        "ESCALATED": "ESCALATED",                  # Disagreement - needs third marker
     }.get(decision, "IN_MODERATION")
 
     async with db.acquire() as conn:
+        # Update the moderation case with the decision
         moderation_case = await conn.fetchrow(
             """
             UPDATE moderation_cases
@@ -556,6 +648,7 @@ async def make_moderation_decision(
             moderation_case_id,
         )
 
+        # Update the assessment status to match the decision
         await conn.execute(
             """
             UPDATE assessments SET status = $1, updated_at = NOW()
@@ -565,6 +658,7 @@ async def make_moderation_decision(
             moderation_case_id,
         )
 
+        # If escalated, record when the escalation happened
         if decision == "ESCALATED":
             await conn.execute(
                 """
@@ -580,21 +674,22 @@ async def make_moderation_decision(
 async def make_third_marker_decision(
     db: asyncpg.Pool,
     *,
-    moderation_case_id: UUID,
-    decision: str,
-    comment: Optional[str],
-    third_marker_id: UUID,
+    moderation_case_id: UUID,     # Which moderation case
+    decision: str,                # CONFIRM_MODERATOR, OVERRIDE_MODERATOR, or REFER_BACK
+    comment: Optional[str],       # Third marker's justification
+    third_marker_id: UUID,        # Who is making the decision
 ) -> dict[str, Any]:
-    # CONFIRM_MODERATOR = Third marker agrees with moderator's concerns → lecturer must revise
-    # OVERRIDE_MODERATOR = Third marker disagrees, marks are fine → approved
-    # REFER_BACK = Needs more review → back to moderation
+    """Record a third marker's binding decision on an escalated case.
+    The third marker resolves disputes between lecturer and moderator."""
+    # Map third marker decision to the appropriate status
     new_status = {
-        "CONFIRM_MODERATOR": "CHANGES_REQUESTED",  # Lecturer must revise marks
-        "OVERRIDE_MODERATOR": "APPROVED",           # Third marker says marks are OK
-        "REFER_BACK": "IN_MODERATION",              # Back to moderator for more review
+        "CONFIRM_MODERATOR": "CHANGES_REQUESTED",  # Agrees with moderator → lecturer must revise
+        "OVERRIDE_MODERATOR": "APPROVED",           # Disagrees with moderator → original marks are fine
+        "REFER_BACK": "IN_MODERATION",              # Needs more discussion → back to moderation
     }.get(decision, "ESCALATED")
 
     async with db.acquire() as conn:
+        # Update the moderation case with the third marker's decision
         moderation_case = await conn.fetchrow(
             """
             UPDATE moderation_cases
@@ -609,6 +704,7 @@ async def make_third_marker_decision(
             moderation_case_id,
         )
 
+        # Update the assessment status to match
         await conn.execute(
             """
             UPDATE assessments SET status = $1, updated_at = NOW()
@@ -621,9 +717,15 @@ async def make_third_marker_decision(
     return dict(moderation_case)
 
 
+# ===============================
+# Moderation Case & Sample Retrieval
+# ===============================
+
 async def get_moderation_case_by_assessment(
     db: asyncpg.Pool, assessment_id: UUID
 ) -> Optional[dict[str, Any]]:
+    """Fetch the moderation case for an assessment, including joined user names
+    and sample metadata. Uses multiple LEFT JOINs to get participant names."""
     row = await db.fetchrow(
         """
         SELECT mc.id, mc.assessment_id, mc.moderator_id, mc.third_marker_id,
@@ -651,6 +753,8 @@ async def get_moderation_case_by_assessment(
 
 
 async def get_sample_items(db: asyncpg.Pool, assessment_id: UUID) -> list[dict[str, Any]]:
+    """Fetch all sample items for an assessment, sorted by mark descending.
+    These are the individual student marks that the moderator reviews."""
     rows = await db.fetch(
         """
         SELECT si.id, si.sample_set_id, si.student_id, si.original_mark as mark, si.marker_id, si.moderator_note
@@ -664,7 +768,13 @@ async def get_sample_items(db: asyncpg.Pool, assessment_id: UUID) -> list[dict[s
     return [dict(r) for r in rows]
 
 
+# ===============================
+# Dashboard Statistics Queries
+# ===============================
+
 async def get_lecturer_dashboard_stats(db: asyncpg.Pool, lecturer_id: UUID) -> dict[str, int]:
+    """Get assessment counts grouped by status for a specific lecturer's dashboard.
+    Uses PostgreSQL FILTER clause for efficient single-pass counting."""
     row = await db.fetchrow(
         """
         SELECT
@@ -685,6 +795,8 @@ async def get_lecturer_dashboard_stats(db: asyncpg.Pool, lecturer_id: UUID) -> d
 
 
 async def get_moderator_dashboard_stats(db: asyncpg.Pool) -> dict[str, int]:
+    """Get counts of assessments needing moderation attention.
+    Only counts assessments in moderation-relevant statuses."""
     row = await db.fetchrow(
         """
         SELECT
@@ -700,6 +812,7 @@ async def get_moderator_dashboard_stats(db: asyncpg.Pool) -> dict[str, int]:
 
 
 async def get_third_marker_dashboard_stats(db: asyncpg.Pool) -> dict[str, int]:
+    """Get counts of escalated assessments needing third marker review."""
     row = await db.fetchrow(
         """
         SELECT
@@ -714,6 +827,10 @@ async def get_third_marker_dashboard_stats(db: asyncpg.Pool) -> dict[str, int]:
 
 
 async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
+    """Get system-wide statistics for the admin dashboard.
+    Aggregates assessment counts by status, user counts by role,
+    and recent audit activity in the last 24 hours."""
+    # Get assessment totals and counts grouped by status
     row = await db.fetchrow(
         """
         SELECT
@@ -727,6 +844,7 @@ async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
         """,
     )
 
+    # Get user counts by role (for admin overview)
     users_row = await db.fetchrow(
         """
         SELECT
@@ -738,6 +856,7 @@ async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
         """,
     )
 
+    # Get audit activity in the last 24 hours (grouped by action type)
     activity_row = await db.fetchrow(
         """
         SELECT
@@ -749,6 +868,7 @@ async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
         """,
     )
 
+    # Combine all stats into a single response dict
     return {
         "total_assessments": row["total_assessments"] if row else 0,
         "by_status": row["by_status"] if row else {},
@@ -758,6 +878,8 @@ async def get_admin_stats(db: asyncpg.Pool) -> dict[str, Any]:
 
 
 async def get_audit_events(db: asyncpg.Pool, limit: int = 20) -> list[dict[str, Any]]:
+    """Fetch the most recent audit log entries for the admin audit trail page.
+    Returns the latest N events ordered by most recent first."""
     rows = await db.fetch(
         """
         SELECT id, timestamp, actor_id, actor_name, actor_role, action, assessment_id
@@ -770,15 +892,21 @@ async def get_audit_events(db: asyncpg.Pool, limit: int = 20) -> list[dict[str, 
     return [dict(r) for r in rows]
 
 
+# ===============================
+# Module & Module Run Operations
+# ===============================
+
 async def create_module_run(
     db: asyncpg.Pool,
     *,
-    module_id: UUID,
-    academic_year: str,
-    semester: Optional[str] = None,
-    cohort_size: int = 0,
-    created_by: UUID,
+    module_id: UUID,                      # Which module this run belongs to
+    academic_year: str,                    # e.g. "2025/26"
+    semester: Optional[str] = None,       # Optional semester (e.g. "1", "2")
+    cohort_size: int = 0,                 # Number of students enrolled
+    created_by: UUID,                     # Who created this run
 ) -> dict[str, Any]:
+    """Create or update a module run (a module offered in a specific academic year).
+    Uses UPSERT to handle duplicate academic year/semester combinations."""
     row = await db.fetchrow(
         """
         INSERT INTO module_runs (module_id, academic_year, semester, cohort_size, created_by)
@@ -799,11 +927,14 @@ async def create_module_run(
 async def get_or_create_module(
     db: asyncpg.Pool,
     *,
-    code: str,
-    title: str,
-    credits: Optional[int] = None,
-    created_by: UUID,
+    code: str,                             # Module code (e.g. "CS2001")
+    title: str,                            # Module title
+    credits: Optional[int] = None,         # Credit value (15, 20, 30+)
+    created_by: UUID,                      # Who is creating/updating the module
 ) -> dict[str, Any]:
+    """Get an existing module by code, or create it if it doesn't exist.
+    Uses UPSERT (INSERT ... ON CONFLICT) to handle the create-or-update pattern.
+    The unique constraint is on the module code."""
     row = await db.fetchrow(
         """
         INSERT INTO modules (code, title, credits, created_by)
@@ -820,7 +951,7 @@ async def get_or_create_module(
 
 
 # ========================================
-# MODULE QUERIES
+# MODULE LISTING QUERIES (Admin Dashboard)
 # ========================================
 
 async def list_modules(
@@ -828,7 +959,9 @@ async def list_modules(
     *,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    """List all modules with assessment count and latest cohort."""
+    """List all modules with their assessment count and latest cohort year.
+    Uses LEFT JOIN to include modules with zero assessments.
+    Used by the admin Modules page."""
     rows = await db.fetch(
         """
         SELECT
@@ -852,21 +985,23 @@ async def list_modules(
 
 
 # ========================================
-# MODERATION FORM RESPONSES
+# MODERATION FORM RESPONSE QUERIES
+# (The 6 questions from the official moderation form)
 # ========================================
 
 async def save_moderation_form_response(
     db: asyncpg.Pool,
     *,
-    assessment_id: UUID,
-    moderator_id: UUID,
-    form_data,  # ModerationFormSubmit pydantic model
+    assessment_id: UUID,      # Which assessment this form is for
+    moderator_id: UUID,       # Who filled in the form
+    form_data,                # ModerationFormResponse Pydantic model with 6 questions
 ) -> dict[str, Any]:
     """
-    Save moderation form responses (the 6 questions from the moderation form).
-    First looks up the moderation case by assessment_id.
+    Save moderation form responses (the 6 mandatory questions from the university
+    moderation form). First looks up the moderation case by assessment_id,
+    then inserts the form response record.
     """
-    # Get the moderation case for this assessment
+    # Find the moderation case for this assessment
     moderation_case = await db.fetchrow(
         "SELECT id FROM moderation_cases WHERE assessment_id = $1",
         assessment_id
@@ -876,6 +1011,7 @@ async def save_moderation_form_response(
     
     moderation_case_id = moderation_case["id"]
     
+    # Insert all 6 form questions with their answers and optional comments
     row = await db.fetchrow(
         """
         INSERT INTO moderation_form_responses (
@@ -891,22 +1027,22 @@ async def save_moderation_form_response(
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *
         """,
-        moderation_case_id,
-        moderator_id,
-        form_data.has_marking_rubric,
-        form_data.has_marking_rubric_comment,
-        form_data.criteria_consistently_applied,
-        form_data.criteria_consistently_applied_comment,
-        form_data.full_range_of_marks_used,
-        form_data.full_range_of_marks_used_comment,
-        form_data.marks_awarded_fairly,
-        form_data.marks_awarded_fairly_comment,
-        form_data.feedback_comments_appropriate,
-        form_data.feedback_comments_appropriate_comment,
-        form_data.all_marks_appropriate,
-        form_data.all_marks_appropriate_comment,
-        form_data.recommendations,
-        form_data.feedback_suggestions,
+        moderation_case_id,                              # $1 - which case
+        moderator_id,                                    # $2 - who responded
+        form_data.has_marking_rubric,                    # $3 - Q1 answer (bool)
+        form_data.has_marking_rubric_comment,            # $4 - Q1 comment
+        form_data.criteria_consistently_applied,         # $5 - Q2 answer
+        form_data.criteria_consistently_applied_comment, # $6 - Q2 comment
+        form_data.full_range_of_marks_used,              # $7 - Q3 answer
+        form_data.full_range_of_marks_used_comment,      # $8 - Q3 comment
+        form_data.marks_awarded_fairly,                  # $9 - Q4 answer
+        form_data.marks_awarded_fairly_comment,          # $10 - Q4 comment
+        form_data.feedback_comments_appropriate,         # $11 - Q5 answer
+        form_data.feedback_comments_appropriate_comment,  # $12 - Q5 comment
+        form_data.all_marks_appropriate,                 # $13 - Q6 answer
+        form_data.all_marks_appropriate_comment,         # $14 - Q6 comment
+        form_data.recommendations,                       # $15 - additional recommendations
+        form_data.feedback_suggestions,                  # $16 - feedback suggestions
     )
     return dict(row)
 
@@ -915,7 +1051,8 @@ async def get_moderation_form_responses(
     db: asyncpg.Pool,
     assessment_id: UUID,
 ) -> list[dict[str, Any]]:
-    """Get all form responses for an assessment's moderation case."""
+    """Get all form responses for an assessment's moderation case.
+    Joins with users table to get the responder's name and role."""
     rows = await db.fetch(
         """
         SELECT mfr.*, u.full_name as responder_name, u.role as responder_role
@@ -934,7 +1071,8 @@ async def get_latest_moderation_form_response(
     db: asyncpg.Pool,
     assessment_id: UUID,
 ) -> Optional[dict[str, Any]]:
-    """Get the most recent form response for an assessment's moderation case."""
+    """Get the most recent form response for an assessment.
+    Used to display the current moderation form state on the frontend."""
     row = await db.fetchrow(
         """
         SELECT mfr.*, u.full_name as responder_name, u.role as responder_role
@@ -952,20 +1090,22 @@ async def get_latest_moderation_form_response(
 
 # ===============================
 # Pre-Moderation Checklist Queries
+# (Completed by lecturer before submitting for moderation)
 # ===============================
 
 async def save_pre_moderation_checklist(
     db: asyncpg.Pool,
-    assessment_id: UUID,
-    user_id: UUID,
-    marking_in_accordance: bool,
-    late_work_policy_adhered: bool,
-    plagiarism_policy_adhered: bool,
-    marks_available_with_percentages: bool,
-    totalling_checked: bool,
-    consistency_comments: Optional[str],
+    assessment_id: UUID,                        # Which assessment
+    user_id: UUID,                              # Who completed the checklist
+    marking_in_accordance: bool,                # Marking done per rubric/criteria
+    late_work_policy_adhered: bool,             # Late penalties applied correctly
+    plagiarism_policy_adhered: bool,            # Plagiarism cases handled per policy
+    marks_available_with_percentages: bool,      # All marks as percentages
+    totalling_checked: bool,                    # Mark totals verified
+    consistency_comments: Optional[str],         # Optional comments
 ) -> dict[str, Any]:
-    """Save or update pre-moderation checklist for an assessment."""
+    """Save or update the pre-moderation checklist for an assessment.
+    Uses UPSERT - only one checklist per assessment allowed (unique constraint)."""
     row = await db.fetchrow(
         """
         INSERT INTO pre_moderation_checklists (
@@ -1001,7 +1141,8 @@ async def get_pre_moderation_checklist(
     db: asyncpg.Pool,
     assessment_id: UUID,
 ) -> Optional[dict[str, Any]]:
-    """Get pre-moderation checklist for an assessment."""
+    """Get the pre-moderation checklist for an assessment.
+    Joins with users table to get the name of who completed it."""
     row = await db.fetchrow(
         """
         SELECT pmc.*, u.full_name as completed_by_name
@@ -1016,18 +1157,20 @@ async def get_pre_moderation_checklist(
 
 # ===============================
 # Module Leader Response Queries
+# (Lecturer's response to moderator feedback)
 # ===============================
 
 async def save_module_leader_response(
     db: asyncpg.Pool,
-    moderation_case_id: UUID,
-    user_id: UUID,
-    moderator_comments_considered: bool,
-    response_to_issues: Optional[str],
-    outliers_explanation: Optional[str],
-    needs_third_marker: bool,
+    moderation_case_id: UUID,                   # Which moderation case
+    user_id: UUID,                              # Who submitted the response
+    moderator_comments_considered: bool,         # Whether comments were reviewed
+    response_to_issues: Optional[str],           # Response to issues raised
+    outliers_explanation: Optional[str],          # Explanation for outlier marks
+    needs_third_marker: bool,                    # Whether third marker is needed
 ) -> dict[str, Any]:
-    """Save or update module leader response for a moderation case."""
+    """Save or update the module leader's response to moderator feedback.
+    Uses UPSERT - only one response per moderation case (unique constraint)."""
     row = await db.fetchrow(
         """
         INSERT INTO module_leader_responses (
@@ -1058,7 +1201,7 @@ async def get_module_leader_response(
     db: asyncpg.Pool,
     moderation_case_id: UUID,
 ) -> Optional[dict[str, Any]]:
-    """Get module leader response for a moderation case."""
+    """Get the module leader response for a specific moderation case."""
     row = await db.fetchrow(
         """
         SELECT mlr.*, u.full_name as completed_by_name
@@ -1075,7 +1218,8 @@ async def get_module_leader_response_by_assessment(
     db: asyncpg.Pool,
     assessment_id: UUID,
 ) -> Optional[dict[str, Any]]:
-    """Get module leader response for an assessment's moderation case."""
+    """Get the module leader response for an assessment (via its moderation case).
+    Convenience function that looks up the moderation case first."""
     row = await db.fetchrow(
         """
         SELECT mlr.*, u.full_name as completed_by_name

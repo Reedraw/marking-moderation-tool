@@ -1,1 +1,7 @@
+/* Global stylesheet - imported by the root layout and applied to every page in the application */
+
+/* Import Tailwind CSS v4 - this single directive loads all of Tailwind's utility classes */
+/* Tailwind CSS is a utility-first CSS framework that provides pre-built classes like 'flex', 'p-4', 'bg-white' etc. */
+/* Unlike traditional CSS, Tailwind lets you style elements directly in JSX using className attributes */
+/* This replaces the need for separate CSS files for most styling needs across the application */
 @import "tailwindcss";
