@@ -411,6 +411,27 @@ export async function deactivateUser(userId: string): Promise<{ message: string 
 }
 
 // ===============================
+// Module APIs
+// ===============================
+
+export interface ModuleInfo {
+  id: string;
+  code: string;
+  title: string;
+  credits: number | null;
+  created_at: string;
+  updated_at: string;
+  assessment_count: number;
+  latest_cohort: string | null;
+}
+
+export async function getModules(limit: number = 100): Promise<ModuleInfo[]> {
+  return apiRequest<ModuleInfo[]>(`/admin/modules?limit=${limit}`, {
+    requireAuth: true,
+  });
+}
+
+// ===============================
 // Pre-Moderation Checklist APIs
 // ===============================
 

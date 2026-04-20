@@ -291,6 +291,24 @@ class PreModerationChecklistOut(BaseModel):
 
 
 # ===============================
+# Module Models
+# ===============================
+
+class ModuleOut(BaseModel):
+    """Output for a module with summary info."""
+    id: UUID
+    code: str
+    title: str
+    credits: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+    assessment_count: int = 0
+    latest_cohort: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ===============================
 # Module Leader Response Models
 # ===============================
 

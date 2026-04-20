@@ -820,6 +820,38 @@ async def get_or_create_module(
 
 
 # ========================================
+# MODULE QUERIES
+# ========================================
+
+async def list_modules(
+    db: asyncpg.Pool,
+    *,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """List all modules with assessment count and latest cohort."""
+    rows = await db.fetch(
+        """
+        SELECT
+            m.id,
+            m.code,
+            m.title,
+            m.credits,
+            m.created_at,
+            m.updated_at,
+            COUNT(a.id)::int AS assessment_count,
+            MAX(a.cohort) AS latest_cohort
+        FROM modules m
+        LEFT JOIN assessments a ON a.module_code = m.code
+        GROUP BY m.id, m.code, m.title, m.credits, m.created_at, m.updated_at
+        ORDER BY m.code ASC
+        LIMIT $1
+        """,
+        limit,
+    )
+    return [dict(r) for r in rows]
+
+
+# ========================================
 # MODERATION FORM RESPONSES
 # ========================================
 

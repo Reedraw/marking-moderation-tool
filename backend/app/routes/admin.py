@@ -9,11 +9,13 @@ from app.models import (
     AdminStats,
     AuditEventOut,
     UserOut,
+    ModuleOut,
 )
 from app.queries.assessments import (
     get_admin_stats,
     get_audit_events,
     log_audit_event,
+    list_modules,
 )
 from app.queries.users import list_users
 
@@ -93,3 +95,14 @@ async def deactivate_user_account(
         return {"message": "User deactivated"}
     else:
         return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
+
+
+@router.get("/modules", response_model=list[ModuleOut])
+async def get_all_modules(
+    limit: int = 100,
+    current_user: dict[str, Any] = Depends(require_role("admin")),
+    db: asyncpg.Pool = Depends(get_database),
+):
+    """Get all modules with assessment counts."""
+    modules = await list_modules(db, limit=min(limit, 200))
+    return modules
