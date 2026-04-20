@@ -84,9 +84,6 @@ marking-moderation-tool/
 ├── register_users.py              # Script to create test users
 ├── .env.example                   # Environment variables template
 ├── README.md                      # This file
-└── more_context/                  # Academic regulations and forms
-    ├── academic-regulations-section-12-marking-moderation-and-external-scrutiny.txt
-    └── Moderation Form_Marking Assessment 2024_25.txt
 ```
 
 ## 🚀 Getting Started
