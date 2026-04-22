@@ -44,14 +44,12 @@ async def registered_user(http_client: AsyncClient):
     return credentials
 
 
-@pytest.mark.asyncio
 async def test_health_check(http_client: AsyncClient):
     """Health endpoint should return 200."""
     response = await http_client.get("/health")
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_register_new_user(http_client: AsyncClient):
     """Registering a new user with Argon2 hashing should return 201."""
     unique_id = str(uuid.uuid4())[:8]
@@ -71,13 +69,12 @@ async def test_register_new_user(http_client: AsyncClient):
     assert data["role"] == "lecturer"
 
 
-@pytest.mark.asyncio
 async def test_login_registered_user(http_client: AsyncClient, registered_user: dict):
     """Logging in with a registered user's Argon2 password should succeed."""
     response = await http_client.post(
         "/api/v1/auth/login",
         json={
-            "username": registered_user["username"],
+            "email": registered_user["email"],
             "password": registered_user["password"],
         },
     )
@@ -85,13 +82,12 @@ async def test_login_registered_user(http_client: AsyncClient, registered_user: 
     assert "access_token" in response.json()
 
 
-@pytest.mark.asyncio
 async def test_get_current_user(http_client: AsyncClient, registered_user: dict):
     """Authenticated /auth/me should return the logged-in user's details."""
     login = await http_client.post(
         "/api/v1/auth/login",
         json={
-            "username": registered_user["username"],
+            "email": registered_user["email"],
             "password": registered_user["password"],
         },
     )
@@ -107,13 +103,12 @@ async def test_get_current_user(http_client: AsyncClient, registered_user: dict)
     assert data["role"] == registered_user["role"]
 
 
-@pytest.mark.asyncio
 async def test_login_wrong_password(http_client: AsyncClient, registered_user: dict):
     """Login with an incorrect password should return 401."""
     response = await http_client.post(
         "/api/v1/auth/login",
         json={
-            "username": registered_user["username"],
+            "email": registered_user["email"],
             "password": "WrongPassword",
         },
     )
