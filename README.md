@@ -65,11 +65,17 @@ marking-moderation-tool/
 │   ├── app/
 │   │   ├── main.py                # FastAPI app entry point
 │   │   ├── routes/                # API endpoints
-│   │   │   └── auth.py            # Authentication routes
+│   │   │   ├── auth.py            # Authentication routes
+│   │   │   ├── admin.py           # Admin management routes
+│   │   │   ├── lecturer.py        # Lecturer workflow routes
+│   │   │   ├── moderator.py       # Moderator review routes
+│   │   │   └── third_marker.py    # Third marker decision routes
 │   │   ├── models/                # Pydantic models
 │   │   │   ├── auth.py
+│   │   │   ├── assessment.py
 │   │   │   └── user.py
 │   │   ├── queries/               # Database queries
+│   │   │   ├── assessments.py
 │   │   │   └── users.py
 │   │   └── lib/                   # Core utilities
 │   │       ├── config.py          # Settings management
@@ -78,6 +84,9 @@ marking-moderation-tool/
 │   │       ├── password.py        # Password hashing
 │   │       └── middleware.py      # CORS, logging, etc.
 │   │
+│   ├── tests/                     # Backend test suite
+│   │   ├── test_api.py            # API endpoint integration tests
+│   │   └── test_e2e_auth.py       # End-to-end authentication tests
 │   └── requirements.txt           # Python dependencies
 │
 ├── database_setup.sql             # PostgreSQL schema definition
@@ -470,25 +479,22 @@ pytest tests/test_e2e_auth.py
 pytest -v
 
 # Run specific test function
-pytest tests/test_moderation_cases.py -k "test_specific_function"
+pytest tests/test_api.py -k "test_specific_function"
 ```
 
 **Test Files:**
-- `test_database_connection.py` - Database connectivity and health checks
+- `test_api.py` - API endpoint integration tests (requires running backend + database)
 - `test_e2e_auth.py` - End-to-end authentication workflows
-- `test_moderation_cases.py` - Complete moderation workflow scenarios
-- `test_api.py` - API endpoint testing
-- `test_supabase_direct.py` - Direct database operations
 
 ### Testing the Complete Workflow
 
-1. **Register Test Users** (use `register_users.py` script in backend folder):
+1. **Register Test Users** (use `register_users.py` script in the root folder):
 ```python
 # Creates 4 test users:
-# - l0dmafia@example.com (lecturer, password: Test123!)
-# - d0dmafia@example.com (moderator, password: Test123!)
-# - b0dmafia@example.com (third_marker, password: Test123!)
-# - m0dmafia@example.com (admin, password: Test123!)
+# - L0DMAFIA@gmail.com (lecturer, password: Testing_123!)
+# - D0DMAFIA@gmail.com (moderator, password: Testing_123!)
+# - B0DMAFIA@gmail.com (third_marker, password: Testing_123!)
+# - M0DMAFIA@gmail.com (admin, password: Testing_123!)
 python register_users.py
 ```
 
@@ -746,7 +752,7 @@ Once the backend is running, visit:
 For questions or issues:
 - Create an issue in the repository
 - Contact the development team
-- Review documentation in `/frontend/STRUCTURE.md`
+- Review documentation in this README
 
 ## 🗺️ Roadmap
 
